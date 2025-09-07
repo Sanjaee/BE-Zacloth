@@ -251,7 +251,7 @@ async function main() {
 
   // Generate 100 products
   const products = [];
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 1000; i++) {
     products.push(generateProduct(i));
   }
 
