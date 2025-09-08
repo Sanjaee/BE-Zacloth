@@ -1,4 +1,34 @@
 -- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "username" TEXT NOT NULL,
+    "email" TEXT,
+    "password" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'client',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Profile" (
+    "id" TEXT NOT NULL,
+    "fullName" TEXT NOT NULL,
+    "bio" TEXT,
+    "avatarUrl" TEXT,
+    "instagram" TEXT,
+    "tiktok" TEXT,
+    "xAccount" TEXT,
+    "facebook" TEXT,
+    "youtube" TEXT,
+    "linkedin" TEXT,
+    "userId" TEXT NOT NULL,
+
+    CONSTRAINT "Profile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Product" (
     "id" TEXT NOT NULL,
     "isOnSale" BOOLEAN NOT NULL,
@@ -16,6 +46,7 @@ CREATE TABLE "Product" (
     "imageUrl" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "userId" TEXT NOT NULL,
 
     CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
 );
@@ -50,7 +81,22 @@ CREATE TABLE "Gender" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Profile_userId_key" ON "Profile"("userId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Product_catalogId_key" ON "Product"("catalogId");
+
+-- AddForeignKey
+ALTER TABLE "Profile" ADD CONSTRAINT "Profile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Product" ADD CONSTRAINT "Product_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "SkuData" ADD CONSTRAINT "SkuData_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;

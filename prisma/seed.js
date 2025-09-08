@@ -255,7 +255,7 @@ async function main() {
     products.push(generateProduct(i));
   }
 
-  console.log("📦 Generated 100 products");
+  console.log("📦 Generated 1000 products");
 
   // Insert products with relations
   for (const productData of products) {

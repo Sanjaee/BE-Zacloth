@@ -7,6 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String    @id @default(cuid())
+  username  String    @unique   // untuk login
+  email     String?   @unique   // opsional, kalau diisi harus unik
+  password  String
+  role      String    @default("client") // admin atau client
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relasi ke Profile (1-1)
+  profile   Profile?
+
+  // Relasi ke Product (1-N)
+  products  Product[]
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  fullName  String              // nama lengkap user
+  bio       String?
+  avatarUrl String?
+
+  // Media sosial
+  instagram String?
+  tiktok    String?
+  xAccount  String?   // Twitter / X
+  facebook  String?
+  youtube   String?
+  linkedin  String?
+
+  userId    String   @unique
+
+  // Relasi balik ke User
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model Product {
   id             String       @id @default(cuid())
   isOnSale       Boolean
@@ -22,14 +58,17 @@ model Product {
   name           String
   prodigyId      String
   imageUrl       String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   // Relasi ke tabel lain
   genders        Gender[]
   skuData        SkuData[]
   subCategories  SubCategory[]
 
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  // Relasi ke User (pemilik produk)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model SkuData {
