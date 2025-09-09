@@ -117,7 +117,186 @@ const getAllProducts = async (req, res) => {
   }
 };
 
+// Create new product (Admin only)
+const createProduct = async (req, res) => {
+  try {
+    // For now, we'll get user info from request body
+    // In production, this should come from JWT token or session
+    const { userId, userRole } = req.body;
+
+    // Check if user is admin
+    if (userRole !== "admin") {
+      return res.status(403).json({
+        message: "Akses ditolak. Hanya admin yang dapat menambah produk.",
+      });
+    }
+
+    const {
+      isOnSale,
+      isNikeByYou,
+      catalogId,
+      brand,
+      category,
+      cloudProductId,
+      color,
+      country,
+      currentPrice,
+      fullPrice,
+      name,
+      prodigyId,
+      imageUrl,
+      genders,
+      skuData,
+      subCategories,
+    } = req.body;
+
+    // Validate required fields
+    if (
+      !catalogId ||
+      !brand ||
+      !category ||
+      !name ||
+      !currentPrice ||
+      !fullPrice
+    ) {
+      return res.status(400).json({
+        message:
+          "Field yang wajib diisi: catalogId, brand, category, name, currentPrice, fullPrice",
+      });
+    }
+
+    // Check if catalogId already exists
+    const existingProduct = await prisma.product.findUnique({
+      where: { catalogId },
+    });
+
+    if (existingProduct) {
+      return res.status(400).json({
+        message: "Produk dengan catalogId ini sudah ada",
+      });
+    }
+
+    // Create product with related data
+    const product = await prisma.product.create({
+      data: {
+        isOnSale: isOnSale || false,
+        isNikeByYou: isNikeByYou || false,
+        catalogId,
+        brand,
+        category,
+        cloudProductId: cloudProductId || "",
+        color: color || "",
+        country: country || "",
+        currentPrice: parseInt(currentPrice),
+        fullPrice: parseInt(fullPrice),
+        name,
+        prodigyId: prodigyId || "",
+        imageUrl: imageUrl || "",
+        userId: userId,
+        genders: {
+          create:
+            genders?.map((gender) => ({
+              type: gender,
+            })) || [],
+        },
+        skuData: {
+          create:
+            skuData?.map((sku) => ({
+              size: sku.size,
+              sku: sku.sku,
+              gtin: sku.gtin,
+            })) || [],
+        },
+        subCategories: {
+          create:
+            subCategories?.map((subCat) => ({
+              name: subCat,
+            })) || [],
+        },
+      },
+      include: {
+        genders: true,
+        skuData: true,
+        subCategories: true,
+      },
+    });
+
+    res.status(201).json({
+      message: "Produk berhasil ditambahkan",
+      product: {
+        ...product,
+        genders: product.genders.map((g) => g.type),
+        subCategory: product.subCategories.map((sc) => sc.name),
+      },
+    });
+  } catch (error) {
+    console.error("Error creating product:", error);
+    res.status(500).json({
+      message: "Gagal menambahkan produk",
+      error: error.message,
+    });
+  }
+};
+
+// Get product by ID
+const getProductById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        message: "Product ID is required",
+      });
+    }
+
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        skuData: true,
+        genders: true,
+        subCategories: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            profile: {
+              select: {
+                fullName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        message: "Produk tidak ditemukan",
+      });
+    }
+
+    // Transform data to match frontend expectations
+    const transformedProduct = {
+      ...product,
+      genders: product.genders.map((g) => g.type),
+      subCategory: product.subCategories.map((sc) => sc.name),
+    };
+
+    res.json({
+      product: transformedProduct,
+    });
+  } catch (error) {
+    console.error("Error fetching product:", error);
+    res.status(500).json({
+      message: "Gagal mengambil detail produk",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   testDatabase,
   getAllProducts,
+  createProduct,
+  getProductById,
 };
