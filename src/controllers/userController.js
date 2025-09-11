@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
+const { generateTokens, refreshToken } = require("../middleware/auth");
 
 const prisma = new PrismaClient();
 
@@ -174,7 +175,10 @@ const loginUser = async (req, res) => {
       });
     }
 
-    // Return user data (excluding password)
+    // Generate JWT tokens
+    const tokens = generateTokens(user);
+
+    // Return user data with tokens (excluding password)
     res.json({
       success: true,
       message: "Login successful",
@@ -186,6 +190,8 @@ const loginUser = async (req, res) => {
         createdAt: user.createdAt,
         profile: user.profile,
       },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     });
   } catch (error) {
     console.error("Error during login:", error);
@@ -201,4 +207,5 @@ module.exports = {
   generateUser,
   getAllUsers,
   loginUser,
+  refreshToken,
 };

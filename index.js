@@ -3,17 +3,28 @@ const cors = require("cors");
 const productRoutes = require("./src/routes/productRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const qrRoutes = require("./src/routes/qrRoutes");
+const {
+  securityHeaders,
+  corsOptions,
+  apiLimiter,
+  validateRequest,
+  requestLogger,
+} = require("./src/middleware/security");
 
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000;
 
-app.use(
-  cors({
-    origin: ["http://localhost:3000", "https://zacloth.com"],
-    credentials: true,
-  })
-);
-app.use(express.json());
+// Trust proxy for accurate IP addresses
+app.set("trust proxy", 1);
+
+// Security middleware
+app.use(securityHeaders);
+app.use(cors(corsOptions));
+app.use(apiLimiter);
+app.use(validateRequest);
+app.use(requestLogger);
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Endpoint welcome
 app.get("/", (req, res) => {

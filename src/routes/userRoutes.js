@@ -3,17 +3,32 @@ const {
   generateUser,
   getAllUsers,
   loginUser,
+  refreshToken,
 } = require("../controllers/userController");
+const { authenticateToken, requireAdmin } = require("../middleware/auth");
+const {
+  loginLimiter,
+  userGenerationLimiter,
+} = require("../middleware/security");
 
 const router = express.Router();
 
-// Login user
-router.post("/login", loginUser);
+// Login user (with rate limiting)
+router.post("/login", loginLimiter, loginUser);
 
-// Generate new user account
-router.post("/generate", generateUser);
+// Refresh token endpoint
+router.post("/refresh", refreshToken);
 
-// Get all users (for admin)
-router.get("/", getAllUsers);
+// Generate new user account (admin only, with rate limiting)
+router.post(
+  "/generate",
+  authenticateToken,
+  requireAdmin,
+  userGenerationLimiter,
+  generateUser
+);
+
+// Get all users (admin only)
+router.get("/", authenticateToken, requireAdmin, getAllUsers);
 
 module.exports = router;
