@@ -90,7 +90,7 @@ const generateProfileQRSimple = async (req, res) => {
     }
 
     // Create simple URL for QR code
-    const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const baseUrl = process.env.FRONTEND_URL || "https://zacloth.com";
     const profileUrl = `${baseUrl}/qr/${profileId}`;
 
     // Generate QR code as data URL
