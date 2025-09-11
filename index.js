@@ -31,6 +31,16 @@ app.get("/", (req, res) => {
   res.send("Selamat datang di Product API dengan Prisma!");
 });
 
+// Debug endpoint for CORS
+app.get("/debug/cors", (req, res) => {
+  res.json({
+    origin: req.get("Origin"),
+    userAgent: req.get("User-Agent"),
+    allowedOrigins: [process.env.FRONTEND_URL || "https://zacloth.com"],
+    nodeEnv: process.env.NODE_ENV,
+  });
+});
+
 // Use product routes
 app.use("/products", productRoutes);
 
