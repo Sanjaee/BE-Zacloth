@@ -203,9 +203,154 @@ const loginUser = async (req, res) => {
   }
 };
 
+// Update user profile
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id; // From authenticated middleware
+    const {
+      fullName,
+      bio,
+      avatarUrl,
+      email,
+      instagram,
+      tiktok,
+      xAccount,
+      facebook,
+      youtube,
+      linkedin,
+    } = req.body;
+
+    // Validate input
+    if (!fullName || fullName.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Full name is required",
+      });
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Update profile in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update user email if provided
+      if (email && email !== user.email) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { email: email.trim() },
+        });
+      }
+
+      // Update profile
+      const updatedProfile = await tx.profile.update({
+        where: { userId: userId },
+        data: {
+          fullName: fullName.trim(),
+          bio: bio ? bio.trim() : null,
+          avatarUrl: avatarUrl ? avatarUrl.trim() : null,
+          instagram: instagram ? instagram.trim() : null,
+          tiktok: tiktok ? tiktok.trim() : null,
+          xAccount: xAccount ? xAccount.trim() : null,
+          facebook: facebook ? facebook.trim() : null,
+          youtube: youtube ? youtube.trim() : null,
+          linkedin: linkedin ? linkedin.trim() : null,
+        },
+      });
+
+      return updatedProfile;
+    });
+
+    // Return updated profile data
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      profile: {
+        id: result.id,
+        fullName: result.fullName,
+        bio: result.bio,
+        avatarUrl: result.avatarUrl,
+        instagram: result.instagram,
+        tiktok: result.tiktok,
+        xAccount: result.xAccount,
+        facebook: result.facebook,
+        youtube: result.youtube,
+        linkedin: result.linkedin,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update profile",
+      error: error.message,
+    });
+  }
+};
+
+// Get user profile (authenticated users only)
+const getProfile = async (req, res) => {
+  try {
+    const userId = req.user.id; // From authenticated middleware
+
+    // Get user with profile data
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Return profile data
+    res.json({
+      success: true,
+      profile: {
+        id: user.profile?.id || null,
+        fullName: user.profile?.fullName || user.username,
+        bio: user.profile?.bio || null,
+        avatarUrl: user.profile?.avatarUrl || null,
+        instagram: user.profile?.instagram || null,
+        tiktok: user.profile?.tiktok || null,
+        xAccount: user.profile?.xAccount || null,
+        facebook: user.profile?.facebook || null,
+        youtube: user.profile?.youtube || null,
+        linkedin: user.profile?.linkedin || null,
+        email: user.email || null,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch profile",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateUser,
   getAllUsers,
   loginUser,
   refreshToken,
+  updateProfile,
+  getProfile,
 };
