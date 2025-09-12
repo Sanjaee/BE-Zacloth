@@ -14,6 +14,7 @@ const {
   webAppOnly,
   validateRequest,
   loginSecurity,
+  userGenerationSecurity,
 } = require("../middleware/security");
 
 const router = express.Router();
@@ -24,9 +25,11 @@ router.post("/login", loginSecurity, validateRequest, loginLimiter, loginUser);
 // Refresh token endpoint (enhanced security - blocks all external tools)
 router.post("/refresh", loginSecurity, validateRequest, refreshToken);
 
-// Generate new user account (admin only, with rate limiting)
+// Generate new user account (admin only, with rate limiting, enhanced security)
 router.post(
   "/generate",
+  userGenerationSecurity,
+  validateRequest,
   authenticateToken,
   requireAdmin,
   userGenerationLimiter,
