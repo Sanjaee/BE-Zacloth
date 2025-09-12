@@ -6,6 +6,10 @@ const {
   getProductById,
 } = require("../controllers/productController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
+const {
+  productCreationSecurity,
+  validateRequest,
+} = require("../middleware/security");
 
 const router = express.Router();
 
@@ -18,7 +22,14 @@ router.get("/", getAllProducts);
 // Get product by ID
 router.get("/:id", getProductById);
 
-// Create new product (Admin only)
-router.post("/", authenticateToken, requireAdmin, createProduct);
+// Create new product (Admin only, with enhanced security)
+router.post(
+  "/",
+  productCreationSecurity,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  createProduct
+);
 
 module.exports = router;

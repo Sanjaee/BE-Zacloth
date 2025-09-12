@@ -120,11 +120,11 @@ const getAllProducts = async (req, res) => {
 // Create new product (Admin only)
 const createProduct = async (req, res) => {
   try {
-    // For now, we'll get user info from request body
-    // In production, this should come from JWT token or session
-    const { userId, userRole } = req.body;
+    // Get user info from JWT token (set by authenticateToken middleware)
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Check if user is admin
+    // Check if user is admin (this should already be checked by requireAdmin middleware)
     if (userRole !== "admin") {
       return res.status(403).json({
         message: "Akses ditolak. Hanya admin yang dapat menambah produk.",
@@ -150,18 +150,34 @@ const createProduct = async (req, res) => {
       subCategories,
     } = req.body;
 
+    // Debug logging
+    console.log("Product creation request data:", {
+      catalogId,
+      brand,
+      category,
+      name,
+      currentPrice,
+      fullPrice,
+      userId,
+      userRole,
+    });
+
     // Validate required fields
     if (
       !catalogId ||
       !brand ||
       !category ||
       !name ||
-      !currentPrice ||
-      !fullPrice
+      currentPrice === undefined ||
+      currentPrice === null ||
+      currentPrice <= 0 ||
+      fullPrice === undefined ||
+      fullPrice === null ||
+      fullPrice <= 0
     ) {
       return res.status(400).json({
         message:
-          "Field yang wajib diisi: catalogId, brand, category, name, currentPrice, fullPrice",
+          "Field yang wajib diisi: catalogId, brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
       });
     }
 
