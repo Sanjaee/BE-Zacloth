@@ -563,6 +563,7 @@ const updateProduct = async (req, res) => {
       skuData,
       subCategories,
       existingImages,
+      deletedImages,
     } = req.body;
 
     // Debug logging
@@ -638,13 +639,48 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    // Handle existing image order update
+    // Handle deleted images - delete files from assets folder
+    if (deletedImages && deletedImages.length > 0) {
+      const fs = require("fs");
+      const path = require("path");
+
+      for (const imageUrl of deletedImages) {
+        if (imageUrl && imageUrl.startsWith("/assets/")) {
+          const filename = path.basename(imageUrl);
+          const filePath = path.join(__dirname, "../../assets", filename);
+
+          try {
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+              console.log("Deleted image file:", filePath);
+            }
+          } catch (error) {
+            console.error("Error deleting image file:", filePath, error);
+          }
+        }
+      }
+    }
+
+    // Handle existing image order update and deletion
     if (existingImages && existingImages.length > 0) {
       // Update existing images order
       for (const img of existingImages) {
         await prisma.productImage.update({
           where: { id: img.id },
           data: { order: img.order },
+        });
+      }
+    }
+
+    // Handle deleted images from database
+    if (deletedImages && deletedImages.length > 0) {
+      // Delete images from database that are in deletedImages list
+      for (const imageUrl of deletedImages) {
+        await prisma.productImage.deleteMany({
+          where: {
+            productId: id,
+            imageUrl: imageUrl,
+          },
         });
       }
     }
@@ -771,6 +807,7 @@ const updateProductWithImage = async (req, res) => {
       skuData,
       subCategories,
       existingImages,
+      deletedImages,
     } = productData;
 
     // Debug logging
@@ -857,6 +894,28 @@ const updateProductWithImage = async (req, res) => {
       finalImageUrl = `/assets/${req.files[0].filename}`;
     }
 
+    // Handle deleted images - delete files from assets folder
+    if (deletedImages && deletedImages.length > 0) {
+      const fs = require("fs");
+      const path = require("path");
+
+      for (const imageUrl of deletedImages) {
+        if (imageUrl && imageUrl.startsWith("/assets/")) {
+          const filename = path.basename(imageUrl);
+          const filePath = path.join(__dirname, "../../assets", filename);
+
+          try {
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+              console.log("Deleted image file:", filePath);
+            }
+          } catch (error) {
+            console.error("Error deleting image file:", filePath, error);
+          }
+        }
+      }
+    }
+
     // Handle image management - we'll update images separately after product update
     let imagesToCreate = [];
 
@@ -878,7 +937,12 @@ const updateProductWithImage = async (req, res) => {
         // Delete images that are not in the keep list
         for (const img of currentExistingImages) {
           if (!keepImageIds.includes(img.id)) {
-            if (img.imageUrl && img.imageUrl.startsWith("/assets/")) {
+            // Only delete file if it's not already in deletedImages (to avoid double deletion)
+            if (
+              img.imageUrl &&
+              img.imageUrl.startsWith("/assets/") &&
+              (!deletedImages || !deletedImages.includes(img.imageUrl))
+            ) {
               const oldImagePath = path.join(
                 __dirname,
                 "../../assets",
@@ -945,6 +1009,23 @@ const updateProductWithImage = async (req, res) => {
         await prisma.productImage.update({
           where: { id: img.id },
           data: { order: img.order },
+        });
+      }
+    }
+
+    // Handle deleted images from database when no new files are uploaded
+    if (
+      deletedImages &&
+      deletedImages.length > 0 &&
+      (!req.files || req.files.length === 0)
+    ) {
+      // Delete images from database that are in deletedImages list
+      for (const imageUrl of deletedImages) {
+        await prisma.productImage.deleteMany({
+          where: {
+            productId: id,
+            imageUrl: imageUrl,
+          },
         });
       }
     }
