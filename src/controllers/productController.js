@@ -449,13 +449,13 @@ const createProductWithImage = async (req, res) => {
               name: subCat,
             })) || [],
         },
-        // Create multiple images
+        // Create multiple images with proper ordering
         images: {
           create:
             req.files?.map((file, index) => ({
               imageUrl: `/assets/${file.filename}`,
               altText: `${name} - Image ${index + 1}`,
-              order: index,
+              order: index, // Order based on array position
             })) || [],
         },
       },
@@ -761,28 +761,53 @@ const updateProductWithImage = async (req, res) => {
       }
     }
 
-    // Determine image URL - use uploaded image if available, otherwise keep existing or use provided URL
+    // Determine main image URL - use first uploaded image if available, otherwise keep existing or use provided URL
     let finalImageUrl = existingProduct.imageUrl; // Keep existing by default
-    if (req.file) {
-      // Delete old image if it exists and is not a URL
-      if (
-        existingProduct.imageUrl &&
-        existingProduct.imageUrl.startsWith("/assets/")
-      ) {
-        const fs = require("fs");
-        const path = require("path");
-        const oldImagePath = path.join(
-          __dirname,
-          "../../assets",
-          path.basename(existingProduct.imageUrl)
-        );
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-        }
-      }
-      finalImageUrl = `/assets/${req.file.filename}`;
+    if (req.files && req.files.length > 0) {
+      finalImageUrl = `/assets/${req.files[0].filename}`;
     } else if (imageUrl) {
       finalImageUrl = imageUrl;
+    }
+
+    // Handle image management - we'll update images separately after product update
+    let imagesToCreate = [];
+
+    if (req.files && req.files.length > 0) {
+      // If new images are uploaded, we need to handle existing images
+      const fs = require("fs");
+      const path = require("path");
+
+      // Get existing images to potentially delete
+      const existingImages = await prisma.productImage.findMany({
+        where: { productId: id },
+      });
+
+      // For now, we'll delete all existing images when new ones are uploaded
+      // In a more advanced implementation, you could send which existing images to keep
+      for (const img of existingImages) {
+        if (img.imageUrl && img.imageUrl.startsWith("/assets/")) {
+          const oldImagePath = path.join(
+            __dirname,
+            "../../assets",
+            path.basename(img.imageUrl)
+          );
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        }
+      }
+
+      // Delete old image records
+      await prisma.productImage.deleteMany({
+        where: { productId: id },
+      });
+
+      // Prepare new images to create
+      imagesToCreate = req.files.map((file, index) => ({
+        imageUrl: `/assets/${file.filename}`,
+        altText: `${name} - Image ${index + 1}`,
+        order: index,
+      }));
     }
 
     // Update product with related data
@@ -827,11 +852,20 @@ const updateProductWithImage = async (req, res) => {
               name: subCat,
             })) || [],
         },
+        // Create new images if files are uploaded
+        ...(imagesToCreate.length > 0 && {
+          images: {
+            create: imagesToCreate,
+          },
+        }),
       },
       include: {
         genders: true,
         skuData: true,
         subCategories: true,
+        images: {
+          orderBy: { order: "asc" },
+        },
       },
     });
 
@@ -841,6 +875,13 @@ const updateProductWithImage = async (req, res) => {
         ...updatedProduct,
         genders: updatedProduct.genders.map((g) => g.type),
         subCategory: updatedProduct.subCategories.map((sc) => sc.name),
+        images:
+          updatedProduct.images?.map((img) => ({
+            id: img.id,
+            imageUrl: img.imageUrl,
+            altText: img.altText,
+            order: img.order,
+          })) || [],
       },
     });
   } catch (error) {
