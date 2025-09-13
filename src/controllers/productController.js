@@ -1,4 +1,5 @@
 const { PrismaClient } = require("@prisma/client");
+const { uploadImage } = require("./imageController");
 
 const prisma = new PrismaClient();
 
@@ -310,9 +311,164 @@ const getProductById = async (req, res) => {
   }
 };
 
+// Create product with image upload
+const createProductWithImage = async (req, res) => {
+  try {
+    // Get user info from JWT token (set by authenticateToken middleware)
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Check if user is admin (this should already be checked by requireAdmin middleware)
+    if (userRole !== "admin") {
+      return res.status(403).json({
+        message: "Akses ditolak. Hanya admin yang dapat menambah produk.",
+      });
+    }
+
+    // Parse form data - handle both JSON and FormData
+    let productData;
+    if (req.body.data) {
+      // If data is sent as FormData, parse the JSON string
+      productData = JSON.parse(req.body.data);
+    } else {
+      // If data is sent as regular JSON
+      productData = req.body;
+    }
+
+    const {
+      isOnSale,
+      isNikeByYou,
+      catalogId,
+      brand,
+      category,
+      cloudProductId,
+      color,
+      country,
+      currentPrice,
+      fullPrice,
+      name,
+      prodigyId,
+      imageUrl, // This can be a URL or will be replaced by uploaded image
+      genders,
+      skuData,
+      subCategories,
+    } = productData;
+
+    // Debug logging
+    console.log("Product creation request data:", {
+      catalogId,
+      brand,
+      category,
+      name,
+      currentPrice,
+      fullPrice,
+      userId,
+      userRole,
+      hasImage: !!req.file,
+    });
+
+    // Validate required fields
+    if (
+      !catalogId ||
+      !brand ||
+      !category ||
+      !name ||
+      currentPrice === undefined ||
+      currentPrice === null ||
+      currentPrice <= 0 ||
+      fullPrice === undefined ||
+      fullPrice === null ||
+      fullPrice <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          "Field yang wajib diisi: catalogId, brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
+      });
+    }
+
+    // Check if catalogId already exists
+    const existingProduct = await prisma.product.findUnique({
+      where: { catalogId },
+    });
+
+    if (existingProduct) {
+      return res.status(400).json({
+        message: "Produk dengan catalogId ini sudah ada",
+      });
+    }
+
+    // Determine image URL - use uploaded image if available, otherwise use provided URL
+    let finalImageUrl = imageUrl || "";
+    if (req.file) {
+      finalImageUrl = `/assets/${req.file.filename}`;
+    }
+
+    // Create product with related data
+    const product = await prisma.product.create({
+      data: {
+        isOnSale: isOnSale || false,
+        isNikeByYou: isNikeByYou || false,
+        catalogId,
+        brand,
+        category,
+        cloudProductId: cloudProductId || "",
+        color: color || "",
+        country: country || "",
+        currentPrice: parseInt(currentPrice),
+        fullPrice: parseInt(fullPrice),
+        name,
+        prodigyId: prodigyId || "",
+        imageUrl: finalImageUrl,
+        userId: userId,
+        genders: {
+          create:
+            genders?.map((gender) => ({
+              type: gender,
+            })) || [],
+        },
+        skuData: {
+          create:
+            skuData?.map((sku) => ({
+              size: sku.size,
+              sku: sku.sku,
+              gtin: sku.gtin,
+            })) || [],
+        },
+        subCategories: {
+          create:
+            subCategories?.map((subCat) => ({
+              name: subCat,
+            })) || [],
+        },
+      },
+      include: {
+        genders: true,
+        skuData: true,
+        subCategories: true,
+      },
+    });
+
+    res.status(201).json({
+      message: "Produk berhasil ditambahkan",
+      product: {
+        ...product,
+        genders: product.genders.map((g) => g.type),
+        subCategory: product.subCategories.map((sc) => sc.name),
+      },
+    });
+  } catch (error) {
+    console.error("Error creating product:", error);
+    res.status(500).json({
+      message: "Gagal menambahkan produk",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   testDatabase,
   getAllProducts,
   createProduct,
+  createProductWithImage,
   getProductById,
 };

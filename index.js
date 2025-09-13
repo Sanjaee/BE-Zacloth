@@ -1,8 +1,10 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const productRoutes = require("./src/routes/productRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const qrRoutes = require("./src/routes/qrRoutes");
+const imageRoutes = require("./src/routes/imageRoutes");
 const {
   securityHeaders,
   corsOptions,
@@ -25,6 +27,9 @@ app.use(validateRequest);
 app.use(requestLogger);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Serve static files from assets directory
+app.use("/assets", express.static(path.join(__dirname, "assets")));
 
 // Endpoint welcome
 app.get("/", (req, res) => {
@@ -49,6 +54,9 @@ app.use("/users", userRoutes);
 
 // Use QR routes
 app.use("/qr", qrRoutes);
+
+// Use image routes
+app.use("/images", imageRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);

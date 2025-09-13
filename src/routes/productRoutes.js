@@ -3,6 +3,7 @@ const {
   testDatabase,
   getAllProducts,
   createProduct,
+  createProductWithImage,
   getProductById,
 } = require("../controllers/productController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
@@ -10,6 +11,11 @@ const {
   productCreationSecurity,
   validateRequest,
 } = require("../middleware/security");
+const { upload } = require("../controllers/imageController");
+const {
+  validateImageUpload,
+  validateProductData,
+} = require("../validation/imageValidation");
 
 const router = express.Router();
 
@@ -29,7 +35,20 @@ router.post(
   validateRequest,
   authenticateToken,
   requireAdmin,
+  validateProductData,
   createProduct
+);
+
+// Create new product with image upload (Admin only, with enhanced security)
+router.post(
+  "/with-image",
+  productCreationSecurity,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  upload.single("image"),
+  validateImageUpload,
+  createProductWithImage
 );
 
 module.exports = router;
