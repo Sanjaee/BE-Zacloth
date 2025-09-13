@@ -57,7 +57,7 @@ model Product {
   fullPrice      Int
   name           String
   prodigyId      String
-  imageUrl       String
+  imageUrl       String       // Main image (backward compatibility)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -65,6 +65,7 @@ model Product {
   genders        Gender[]
   skuData        SkuData[]
   subCategories  SubCategory[]
+  images         ProductImage[] // Multiple images
 
   // Relasi ke User (pemilik produk)
   userId         String
@@ -92,6 +93,18 @@ model SubCategory {
 model Gender {
   id        String   @id @default(cuid())
   type      String   // contoh: "MEN", "WOMEN"
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  imageUrl  String   // Path to image file
+  altText   String?  // Alternative text for accessibility
+  order     Int      @default(0) // Order of images (0 = first/main image)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String

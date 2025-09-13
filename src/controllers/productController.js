@@ -272,6 +272,9 @@ const getProductById = async (req, res) => {
         skuData: true,
         genders: true,
         subCategories: true,
+        images: {
+          orderBy: { order: "asc" },
+        },
         user: {
           select: {
             id: true,
@@ -297,6 +300,12 @@ const getProductById = async (req, res) => {
       ...product,
       genders: product.genders.map((g) => g.type),
       subCategory: product.subCategories.map((sc) => sc.name),
+      images: product.images.map((img) => ({
+        id: img.id,
+        imageUrl: img.imageUrl,
+        altText: img.altText,
+        order: img.order,
+      })),
     };
 
     res.json({
@@ -311,7 +320,7 @@ const getProductById = async (req, res) => {
   }
 };
 
-// Create product with image upload
+// Create product with multiple images upload
 const createProductWithImage = async (req, res) => {
   try {
     // Get user info from JWT token (set by authenticateToken middleware)
@@ -364,7 +373,7 @@ const createProductWithImage = async (req, res) => {
       fullPrice,
       userId,
       userRole,
-      hasImage: !!req.file,
+      hasImages: req.files ? req.files.length : 0,
     });
 
     // Validate required fields
@@ -397,10 +406,10 @@ const createProductWithImage = async (req, res) => {
       });
     }
 
-    // Determine image URL - use uploaded image if available, otherwise use provided URL
+    // Determine main image URL - use first uploaded image if available, otherwise use provided URL
     let finalImageUrl = imageUrl || "";
-    if (req.file) {
-      finalImageUrl = `/assets/${req.file.filename}`;
+    if (req.files && req.files.length > 0) {
+      finalImageUrl = `/assets/${req.files[0].filename}`;
     }
 
     // Create product with related data
@@ -440,11 +449,23 @@ const createProductWithImage = async (req, res) => {
               name: subCat,
             })) || [],
         },
+        // Create multiple images
+        images: {
+          create:
+            req.files?.map((file, index) => ({
+              imageUrl: `/assets/${file.filename}`,
+              altText: `${name} - Image ${index + 1}`,
+              order: index,
+            })) || [],
+        },
       },
       include: {
         genders: true,
         skuData: true,
         subCategories: true,
+        images: {
+          orderBy: { order: "asc" },
+        },
       },
     });
 
@@ -454,6 +475,12 @@ const createProductWithImage = async (req, res) => {
         ...product,
         genders: product.genders.map((g) => g.type),
         subCategory: product.subCategories.map((sc) => sc.name),
+        images: product.images.map((img) => ({
+          id: img.id,
+          imageUrl: img.imageUrl,
+          altText: img.altText,
+          order: img.order,
+        })),
       },
     });
   } catch (error) {
