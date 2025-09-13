@@ -1,5 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const { uploadImage } = require("./imageController");
+const { generateSlug, generateUniqueSlug } = require("../utils/slugGenerator");
 
 const prisma = new PrismaClient();
 
@@ -193,6 +194,15 @@ const createProduct = async (req, res) => {
       });
     }
 
+    // Generate unique slug
+    const baseSlug = generateSlug(name);
+    const slug = await generateUniqueSlug(baseSlug, async (slugToCheck) => {
+      const existing = await prisma.product.findUnique({
+        where: { slug: slugToCheck },
+      });
+      return !!existing;
+    });
+
     // Create product with related data
     const product = await prisma.product.create({
       data: {
@@ -207,6 +217,7 @@ const createProduct = async (req, res) => {
         currentPrice: parseInt(currentPrice),
         fullPrice: parseInt(fullPrice),
         name,
+        slug,
         prodigyId: prodigyId || "",
         imageUrl: imageUrl || "",
         userId: userId,
@@ -255,19 +266,24 @@ const createProduct = async (req, res) => {
   }
 };
 
-// Get product by ID
+// Get product by ID or slug
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
     if (!id) {
       return res.status(400).json({
-        message: "Product ID is required",
+        message: "Product ID or slug is required",
       });
     }
 
+    // Check if the parameter is a slug (contains hyphens and no special characters) or ID
+    const isSlug = /^[a-z0-9-]+$/.test(id) && id.includes("-");
+
+    const whereClause = isSlug ? { slug: id } : { id };
+
     const product = await prisma.product.findUnique({
-      where: { id },
+      where: whereClause,
       include: {
         skuData: true,
         genders: true,
@@ -406,6 +422,15 @@ const createProductWithImage = async (req, res) => {
       });
     }
 
+    // Generate unique slug
+    const baseSlug = generateSlug(name);
+    const slug = await generateUniqueSlug(baseSlug, async (slugToCheck) => {
+      const existing = await prisma.product.findUnique({
+        where: { slug: slugToCheck },
+      });
+      return !!existing;
+    });
+
     // Determine main image URL - use first uploaded image if available, otherwise use provided URL
     let finalImageUrl = imageUrl || "";
     if (req.files && req.files.length > 0) {
@@ -426,6 +451,7 @@ const createProductWithImage = async (req, res) => {
         currentPrice: parseInt(currentPrice),
         fullPrice: parseInt(fullPrice),
         name,
+        slug,
         prodigyId: prodigyId || "",
         imageUrl: finalImageUrl,
         userId: userId,
@@ -587,6 +613,18 @@ const updateProduct = async (req, res) => {
       }
     }
 
+    // Generate new slug if name is being changed
+    let slug = existingProduct.slug;
+    if (name !== existingProduct.name) {
+      const baseSlug = generateSlug(name);
+      slug = await generateUniqueSlug(baseSlug, async (slugToCheck) => {
+        const existing = await prisma.product.findUnique({
+          where: { slug: slugToCheck },
+        });
+        return !!existing;
+      });
+    }
+
     // Update product with related data
     const updatedProduct = await prisma.product.update({
       where: { id },
@@ -602,6 +640,7 @@ const updateProduct = async (req, res) => {
         currentPrice: parseInt(currentPrice),
         fullPrice: parseInt(fullPrice),
         name,
+        slug,
         prodigyId: prodigyId || "",
         imageUrl: imageUrl || existingProduct.imageUrl, // Keep existing image if not provided
         userId: userId,
@@ -761,6 +800,18 @@ const updateProductWithImage = async (req, res) => {
       }
     }
 
+    // Generate new slug if name is being changed
+    let slug = existingProduct.slug;
+    if (name !== existingProduct.name) {
+      const baseSlug = generateSlug(name);
+      slug = await generateUniqueSlug(baseSlug, async (slugToCheck) => {
+        const existing = await prisma.product.findUnique({
+          where: { slug: slugToCheck },
+        });
+        return !!existing;
+      });
+    }
+
     // Determine main image URL - use first uploaded image if available, otherwise keep existing or use provided URL
     let finalImageUrl = existingProduct.imageUrl; // Keep existing by default
     if (req.files && req.files.length > 0) {
@@ -825,6 +876,7 @@ const updateProductWithImage = async (req, res) => {
         currentPrice: parseInt(currentPrice),
         fullPrice: parseInt(fullPrice),
         name,
+        slug,
         prodigyId: prodigyId || "",
         imageUrl: finalImageUrl,
         userId: userId,

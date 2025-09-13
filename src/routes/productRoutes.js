@@ -28,8 +28,11 @@ router.get("/test", testDatabase);
 // Get all products with pagination, search, and filtering
 router.get("/", getAllProducts);
 
-// Get product by ID
+// Get product by ID or slug
 router.get("/:id", getProductById);
+
+// Get product by slug (alternative route for better SEO)
+router.get("/slug/:slug", getProductById);
 
 // Create new product (Admin only, with enhanced security)
 router.post(

@@ -56,6 +56,7 @@ model Product {
   currentPrice   Int
   fullPrice      Int
   name           String
+  slug           String       @unique // URL-friendly slug
   prodigyId      String
   imageUrl       String       // Main image (backward compatibility)
   createdAt      DateTime     @default(now())
