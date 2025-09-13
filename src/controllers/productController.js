@@ -562,6 +562,7 @@ const updateProduct = async (req, res) => {
       genders,
       skuData,
       subCategories,
+      existingImages,
     } = req.body;
 
     // Debug logging
@@ -637,6 +638,17 @@ const updateProduct = async (req, res) => {
       });
     }
 
+    // Handle existing image order update
+    if (existingImages && existingImages.length > 0) {
+      // Update existing images order
+      for (const img of existingImages) {
+        await prisma.productImage.update({
+          where: { id: img.id },
+          data: { order: img.order },
+        });
+      }
+    }
+
     // Update product with related data
     const updatedProduct = await prisma.product.update({
       where: { id },
@@ -685,6 +697,9 @@ const updateProduct = async (req, res) => {
         genders: true,
         skuData: true,
         subCategories: true,
+        images: {
+          orderBy: { order: "asc" },
+        },
       },
     });
 
@@ -694,6 +709,13 @@ const updateProduct = async (req, res) => {
         ...updatedProduct,
         genders: updatedProduct.genders.map((g) => g.type),
         subCategory: updatedProduct.subCategories.map((sc) => sc.name),
+        images:
+          updatedProduct.images?.map((img) => ({
+            id: img.id,
+            imageUrl: img.imageUrl,
+            altText: img.altText,
+            order: img.order,
+          })) || [],
       },
     });
   } catch (error) {
@@ -748,6 +770,7 @@ const updateProductWithImage = async (req, res) => {
       genders,
       skuData,
       subCategories,
+      existingImages,
     } = productData;
 
     // Debug logging
@@ -824,12 +847,14 @@ const updateProductWithImage = async (req, res) => {
       });
     }
 
-    // Determine main image URL - use first uploaded image if available, otherwise keep existing or use provided URL
+    // Determine main image URL - prioritize selected main image from frontend
     let finalImageUrl = existingProduct.imageUrl; // Keep existing by default
-    if (req.files && req.files.length > 0) {
-      finalImageUrl = `/assets/${req.files[0].filename}`;
-    } else if (imageUrl) {
+    if (imageUrl) {
+      // Use the selected main image from frontend
       finalImageUrl = imageUrl;
+    } else if (req.files && req.files.length > 0) {
+      // Fallback to first uploaded image if no main image selected
+      finalImageUrl = `/assets/${req.files[0].filename}`;
     }
 
     // Handle image management - we'll update images separately after product update
@@ -841,36 +866,87 @@ const updateProductWithImage = async (req, res) => {
       const path = require("path");
 
       // Get existing images to potentially delete
-      const existingImages = await prisma.productImage.findMany({
+      const currentExistingImages = await prisma.productImage.findMany({
         where: { productId: id },
       });
 
-      // For now, we'll delete all existing images when new ones are uploaded
-      // In a more advanced implementation, you could send which existing images to keep
-      for (const img of existingImages) {
-        if (img.imageUrl && img.imageUrl.startsWith("/assets/")) {
-          const oldImagePath = path.join(
-            __dirname,
-            "../../assets",
-            path.basename(img.imageUrl)
-          );
-          if (fs.existsSync(oldImagePath)) {
-            fs.unlinkSync(oldImagePath);
+      // If existingImages is provided, we need to preserve the order and only delete images not in the list
+      if (existingImages && existingImages.length > 0) {
+        // Get IDs of images that should be kept
+        const keepImageIds = existingImages.map((img) => img.id);
+
+        // Delete images that are not in the keep list
+        for (const img of currentExistingImages) {
+          if (!keepImageIds.includes(img.id)) {
+            if (img.imageUrl && img.imageUrl.startsWith("/assets/")) {
+              const oldImagePath = path.join(
+                __dirname,
+                "../../assets",
+                path.basename(img.imageUrl)
+              );
+              if (fs.existsSync(oldImagePath)) {
+                fs.unlinkSync(oldImagePath);
+              }
+            }
+            await prisma.productImage.delete({
+              where: { id: img.id },
+            });
           }
         }
+
+        // Update order of existing images
+        for (const img of existingImages) {
+          await prisma.productImage.update({
+            where: { id: img.id },
+            data: { order: img.order },
+          });
+        }
+
+        // Prepare new images to create with proper order (after existing images)
+        const maxOrder = Math.max(
+          ...existingImages.map((img) => img.order),
+          -1
+        );
+        imagesToCreate = req.files.map((file, index) => ({
+          imageUrl: `/assets/${file.filename}`,
+          altText: `${name} - Image ${index + 1}`,
+          order: maxOrder + 1 + index,
+        }));
+      } else {
+        // If no existingImages provided, delete all existing images (old behavior)
+        for (const img of currentExistingImages) {
+          if (img.imageUrl && img.imageUrl.startsWith("/assets/")) {
+            const oldImagePath = path.join(
+              __dirname,
+              "../../assets",
+              path.basename(img.imageUrl)
+            );
+            if (fs.existsSync(oldImagePath)) {
+              fs.unlinkSync(oldImagePath);
+            }
+          }
+        }
+
+        // Delete old image records
+        await prisma.productImage.deleteMany({
+          where: { productId: id },
+        });
+
+        // Prepare new images to create
+        imagesToCreate = req.files.map((file, index) => ({
+          imageUrl: `/assets/${file.filename}`,
+          altText: `${name} - Image ${index + 1}`,
+          order: index,
+        }));
       }
-
-      // Delete old image records
-      await prisma.productImage.deleteMany({
-        where: { productId: id },
-      });
-
-      // Prepare new images to create
-      imagesToCreate = req.files.map((file, index) => ({
-        imageUrl: `/assets/${file.filename}`,
-        altText: `${name} - Image ${index + 1}`,
-        order: index,
-      }));
+    } else if (existingImages && existingImages.length > 0) {
+      // If no new files but existing images order is provided, just update the order
+      for (const img of existingImages) {
+        await prisma.productImage.update({
+          where: { id: img.id },
+          data: { order: img.order },
+        });
+      }
     }
 
     // Update product with related data
