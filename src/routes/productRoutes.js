@@ -5,6 +5,9 @@ const {
   createProduct,
   createProductWithImage,
   getProductById,
+  updateProduct,
+  updateProductWithImage,
+  deleteProduct,
 } = require("../controllers/productController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
@@ -49,6 +52,39 @@ router.post(
   upload.single("image"),
   validateImageUpload,
   createProductWithImage
+);
+
+// Update product with image upload by ID (Admin only, with enhanced security)
+router.put(
+  "/:id/with-image",
+  productCreationSecurity,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  upload.single("image"),
+  validateImageUpload,
+  updateProductWithImage
+);
+
+// Update product by ID (Admin only, with enhanced security)
+router.put(
+  "/:id",
+  productCreationSecurity,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  validateProductData,
+  updateProduct
+);
+
+// Delete product by ID (Admin only, with enhanced security)
+router.delete(
+  "/:id",
+  productCreationSecurity,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  deleteProduct
 );
 
 module.exports = router;

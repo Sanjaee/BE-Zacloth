@@ -68,20 +68,50 @@ const productDataSchema = z.object({
 // Validation middleware for image upload
 const validateImageUpload = (req, res, next) => {
   try {
-    // Validate the request
-    const validationResult = imageValidationSchema.safeParse(req);
-
-    if (!validationResult.success) {
-      const errors = validationResult.error.errors.map((err) => ({
-        field: err.path.join("."),
-        message: err.message,
-      }));
-
-      return res.status(400).json({
-        success: false,
-        message: "Validation failed",
-        errors: errors,
+    // Validate file if present
+    if (req.file) {
+      const fileValidation = z.object({
+        fieldname: z.string(),
+        originalname: z.string(),
+        encoding: z.string(),
+        mimetype: z.string().refine(
+          (mimetype) => {
+            const allowedTypes = [
+              "image/jpeg",
+              "image/jpg",
+              "image/png",
+              "image/gif",
+              "image/webp",
+            ];
+            return allowedTypes.includes(mimetype);
+          },
+          {
+            message: "Only image files (JPEG, JPG, PNG, GIF, WEBP) are allowed",
+          }
+        ),
+        size: z.number().max(3 * 1024 * 1024, {
+          message: "File size must not exceed 3MB",
+        }),
+        destination: z.string(),
+        filename: z.string(),
+        path: z.string(),
+        buffer: z.any().optional(),
       });
+
+      const fileValidationResult = fileValidation.safeParse(req.file);
+
+      if (!fileValidationResult.success) {
+        const errors = fileValidationResult.error.errors.map((err) => ({
+          field: err.path.join("."),
+          message: err.message,
+        }));
+
+        return res.status(400).json({
+          success: false,
+          message: "File validation failed",
+          errors: errors,
+        });
+      }
     }
 
     // If there's form data, validate it too
