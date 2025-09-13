@@ -94,6 +94,18 @@ CREATE TABLE "ProductImage" (
     CONSTRAINT "ProductImage_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Visitor" (
+    "id" TEXT NOT NULL,
+    "page" TEXT NOT NULL,
+    "userAgent" TEXT,
+    "referrer" TEXT,
+    "ip" TEXT,
+    "visitedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Visitor_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 

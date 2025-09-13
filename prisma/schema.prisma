@@ -110,3 +110,12 @@ model ProductImage {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String
 }
+
+model Visitor {
+  id        String   @id @default(cuid())
+  page      String   // Page visited
+  userAgent String?  // Browser user agent
+  referrer  String?  // Referrer URL
+  ip        String?  // IP address
+  visitedAt DateTime @default(now())
+}

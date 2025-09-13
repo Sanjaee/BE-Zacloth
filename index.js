@@ -97,6 +97,10 @@ app.use("/users", userRoutes);
 // Use QR routes
 app.use("/qr", qrRoutes);
 
+// Use visitor routes
+const visitorRoutes = require("./src/routes/visitorRoutes");
+app.use("/visitors", visitorRoutes);
+
 // Use image routes
 app.use("/images", imageRoutes);
 
