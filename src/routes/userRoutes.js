@@ -36,8 +36,15 @@ router.post(
   generateUser
 );
 
-// Get all users (admin only)
-router.get("/", authenticateToken, requireAdmin, getAllUsers);
+// Get all users (admin only, with enhanced security)
+router.get(
+  "/",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  getAllUsers
+);
 
 // Get user profile (authenticated users only, web app only)
 router.get(

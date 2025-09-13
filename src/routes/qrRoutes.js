@@ -4,23 +4,32 @@ const {
   generateProfileQRSimple,
   getProfileByQR,
 } = require("../controllers/qrController");
-const { authenticateToken, requireClient } = require("../middleware/auth");
+const {
+  authenticateToken,
+  requireClient,
+  requireAdmin,
+} = require("../middleware/auth");
+const { webAppOnly, validateRequest } = require("../middleware/security");
 
 const router = express.Router();
 
 // Generate QR code for profile (JSON data version) - requires authentication
 router.get(
   "/profile/:profileId",
+  webAppOnly,
+  validateRequest,
   authenticateToken,
   requireClient,
   generateProfileQR
 );
 
-// Generate QR code for profile (simple URL version) - requires authentication
+// Generate QR code for profile (simple URL version) - admin only for user management
 router.get(
   "/profile/:profileId/simple",
+  webAppOnly,
+  validateRequest,
   authenticateToken,
-  requireClient,
+  requireAdmin,
   generateProfileQRSimple
 );
 

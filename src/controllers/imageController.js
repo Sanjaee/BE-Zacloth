@@ -50,7 +50,7 @@ const upload = multer({
 const uploadSingle = upload.single("image");
 
 // Multiple images upload
-const uploadMultiple = upload.array("images", 5); // Max 5 images
+const uploadMultiple = upload.array("images", 10); // Max 10 images
 
 // Upload single image
 const uploadImage = (req, res) => {

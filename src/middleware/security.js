@@ -41,6 +41,20 @@ const userGenerationLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Rate limiting for visitor tracking (more lenient)
+const visitorTrackingLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // Limit each IP to 30 visitor tracking requests per minute
+  message: {
+    success: false,
+    message: "Too many visitor tracking requests, please try again later",
+    code: "RATE_LIMIT_EXCEEDED",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Don't count successful requests
+});
+
 // Security headers middleware
 const securityHeaders = helmet({
   contentSecurityPolicy: {
@@ -940,6 +954,7 @@ module.exports = {
   loginLimiter,
   apiLimiter,
   userGenerationLimiter,
+  visitorTrackingLimiter,
   securityHeaders,
   corsOptions,
   validateRequest,

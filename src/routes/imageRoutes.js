@@ -7,17 +7,39 @@ const {
 } = require("../controllers/imageController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const { validateImageUpload } = require("../validation/imageValidation");
+const { webAppOnly, validateRequest } = require("../middleware/security");
 
 const router = express.Router();
 
-// Upload single image (Admin only)
-router.post("/upload", authenticateToken, requireAdmin, uploadImage);
+// Upload single image (Admin only, with enhanced security)
+router.post(
+  "/upload",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  uploadImage
+);
 
-// Upload multiple images (Admin only)
-router.post("/upload-multiple", authenticateToken, requireAdmin, uploadImages);
+// Upload multiple images (Admin only, with enhanced security)
+router.post(
+  "/upload-multiple",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  uploadImages
+);
 
-// Delete image (Admin only)
-router.delete("/:filename", authenticateToken, requireAdmin, deleteImage);
+// Delete image (Admin only, with enhanced security)
+router.delete(
+  "/:filename",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  deleteImage
+);
 
 // Get image info (Public access)
 router.get("/info/:filename", getImageInfo);

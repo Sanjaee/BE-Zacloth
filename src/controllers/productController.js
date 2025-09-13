@@ -354,7 +354,19 @@ const createProductWithImage = async (req, res) => {
     let productData;
     if (req.body.data) {
       // If data is sent as FormData, parse the JSON string
-      productData = JSON.parse(req.body.data);
+      console.log("Raw data received:", req.body.data);
+      try {
+        productData = JSON.parse(req.body.data);
+        console.log("Parsed product data:", productData);
+      } catch (parseError) {
+        console.error("Error parsing product data:", parseError);
+        console.error("Raw data that failed to parse:", req.body.data);
+        return res.status(400).json({
+          success: false,
+          message: "Invalid JSON in form data",
+          error: parseError.message,
+        });
+      }
     } else {
       // If data is sent as regular JSON
       productData = req.body;

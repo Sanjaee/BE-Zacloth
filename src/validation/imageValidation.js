@@ -41,15 +41,15 @@ const imageValidationSchema = z.object({
 const productDataSchema = z.object({
   isOnSale: z.boolean().optional(),
   isNikeByYou: z.boolean().optional(),
-  catalogId: z.string().min(1, "Catalog ID is required"),
-  brand: z.string().min(1, "Brand is required"),
-  category: z.string().min(1, "Category is required"),
+  catalogId: z.string().trim().min(1, "Catalog ID is required"),
+  brand: z.string().trim().min(1, "Brand is required"),
+  category: z.string().trim().min(1, "Category is required"),
   cloudProductId: z.string().optional(),
   color: z.string().optional(),
   country: z.string().optional(),
-  currentPrice: z.number().positive("Current price must be positive"),
-  fullPrice: z.number().positive("Full price must be positive"),
-  name: z.string().min(1, "Product name is required"),
+  currentPrice: z.number().min(0, "Current price must be non-negative"),
+  fullPrice: z.number().min(0, "Full price must be non-negative"),
+  name: z.string().trim().min(1, "Product name is required"),
   prodigyId: z.string().optional(),
   imageUrl: z.string().optional(),
   genders: z.array(z.string()).optional(),
@@ -116,23 +116,33 @@ const validateImageUpload = (req, res, next) => {
 
     // If there's form data, validate it too
     if (req.body.data) {
+      console.log("Validation middleware - Raw data:", req.body.data);
       try {
         const productData = JSON.parse(req.body.data);
+        console.log("Validation middleware - Parsed data:", productData);
         const productValidation = productDataSchema.safeParse(productData);
 
         if (!productValidation.success) {
+          console.log(
+            "Validation middleware - Validation failed:",
+            productValidation.error.errors
+          );
           const errors = productValidation.error.errors.map((err) => ({
             field: err.path.join("."),
             message: err.message,
+            received: err.input,
           }));
 
           return res.status(400).json({
             success: false,
             message: "Product data validation failed",
             errors: errors,
+            receivedData: productData,
           });
         }
+        console.log("Validation middleware - Validation passed");
       } catch (parseError) {
+        console.error("Validation middleware - Parse error:", parseError);
         return res.status(400).json({
           success: false,
           message: "Invalid JSON in form data",
