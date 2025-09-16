@@ -34,6 +34,12 @@ router.post(
   authenticateToken,
   rajaOngkirController.getCost.bind(rajaOngkirController)
 );
+
+// Public route for guest users (temporary solution)
+router.post(
+  "/cost-guest",
+  rajaOngkirController.getCost.bind(rajaOngkirController)
+);
 router.post(
   "/simulate-payment",
   authenticateToken,
