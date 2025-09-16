@@ -108,6 +108,10 @@ app.use("/images", imageRoutes);
 const rajaOngkirRoutes = require("./src/routes/rajaOngkirRoutes");
 app.use("/rajaongkir", rajaOngkirRoutes);
 
+// Use Payment routes
+const paymentRoutes = require("./src/routes/paymentRoutes");
+app.use("/payments", paymentRoutes);
+
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });

@@ -273,13 +273,13 @@ const getProductById = async (req, res) => {
 
     if (!id) {
       return res.status(400).json({
-        message: "Product ID or slug is required",
+        success: false,
+        message: "Product ID is required",
       });
     }
 
     // Check if the parameter is a slug (contains hyphens and no special characters) or ID
     const isSlug = /^[a-z0-9-]+$/.test(id) && id.includes("-");
-
     const whereClause = isSlug ? { slug: id } : { id };
 
     const product = await prisma.product.findUnique({
@@ -307,7 +307,8 @@ const getProductById = async (req, res) => {
 
     if (!product) {
       return res.status(404).json({
-        message: "Produk tidak ditemukan",
+        success: false,
+        message: "Product not found",
       });
     }
 
@@ -325,12 +326,79 @@ const getProductById = async (req, res) => {
     };
 
     res.json({
-      product: transformedProduct,
+      success: true,
+      data: transformedProduct,
     });
   } catch (error) {
-    console.error("Error fetching product:", error);
     res.status(500).json({
-      message: "Gagal mengambil detail produk",
+      success: false,
+      message: "Failed to fetch product",
+      error: error.message,
+    });
+  }
+};
+
+// Get product by ID for checkout (minimal data needed for payment)
+const getProductForCheckout = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Product ID is required",
+      });
+    }
+
+    const product = await prisma.product.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        currentPrice: true,
+        fullPrice: true,
+        imageUrl: true,
+        isOnSale: true,
+        brand: true,
+        category: true,
+        color: true,
+        country: true,
+        catalogId: true,
+        cloudProductId: true,
+        prodigyId: true,
+        isNikeByYou: true,
+        slug: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            id: true,
+            username: true,
+            profile: {
+              select: {
+                fullName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: product,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch product for checkout",
       error: error.message,
     });
   }
@@ -1187,6 +1255,7 @@ module.exports = {
   createProduct,
   createProductWithImage,
   getProductById,
+  getProductForCheckout,
   updateProduct,
   updateProductWithImage,
   deleteProduct,

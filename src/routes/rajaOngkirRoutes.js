@@ -40,10 +40,5 @@ router.post(
   "/cost-guest",
   rajaOngkirController.getCost.bind(rajaOngkirController)
 );
-router.post(
-  "/simulate-payment",
-  authenticateToken,
-  rajaOngkirController.simulatePayment.bind(rajaOngkirController)
-);
 
 module.exports = router;

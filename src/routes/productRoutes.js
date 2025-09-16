@@ -5,6 +5,7 @@ const {
   createProduct,
   createProductWithImage,
   getProductById,
+  getProductForCheckout,
   updateProduct,
   updateProductWithImage,
   deleteProduct,
@@ -30,6 +31,9 @@ router.get("/", getAllProducts);
 
 // Get product by ID or slug
 router.get("/:id", getProductById);
+
+// Get product by ID for checkout (minimal data)
+router.get("/checkout/:id", getProductForCheckout);
 
 // Get product by slug (alternative route for better SEO)
 router.get("/slug/:slug", getProductById);
