@@ -190,9 +190,9 @@ class MidtransController {
         },
       });
       if (!payment) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: "Payment not found" 
+          message: "Payment not found",
         });
       }
       // Get status from Midtrans
@@ -335,9 +335,9 @@ class MidtransController {
       });
 
       if (!payment) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: "Payment not found" 
+          message: "Payment not found",
         });
       }
 
