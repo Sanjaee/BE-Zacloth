@@ -6,6 +6,8 @@ const {
   refreshToken,
   updateProfile,
   getProfile,
+  getUserAddresses,
+  createUserAddress,
 } = require("../controllers/userController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
@@ -62,6 +64,24 @@ router.put(
   validateRequest,
   authenticateToken,
   updateProfile
+);
+
+// Get user addresses (authenticated users only, web app only)
+router.get(
+  "/addresses",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  getUserAddresses
+);
+
+// Create user address (authenticated users only, web app only)
+router.post(
+  "/addresses",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  createUserAddress
 );
 
 module.exports = router;

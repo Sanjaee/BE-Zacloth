@@ -21,6 +21,12 @@ model User {
 
   // Relasi ke Product (1-N)
   products  Product[]
+
+  // Relasi ke Payment (1-N)
+  payments  Payment[]
+
+  // Relasi ke UserAddress (1-N)
+  addresses UserAddress[]
 }
 
 model Profile {
@@ -70,7 +76,10 @@ model Product {
 
   // Relasi ke User (pemilik produk)
   userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)  
+
+  // Relasi ke Payment (1-N)
+  payments       Payment[]
 }
 
 model SkuData {
@@ -118,4 +127,93 @@ model Visitor {
   referrer  String?  // Referrer URL
   ip        String?  // IP address
   visitedAt DateTime @default(now())
+}
+
+model UserAddress {
+  id              String   @id @default(cuid())
+  recipientName   String              // nama penerima
+  phoneNumber     String              // nomor HP penerima
+  provinceId      Int                 // ID provinsi RajaOngkir
+  provinceName    String              // Nama provinsi
+  cityId          Int                 // ID kota/kabupaten
+  cityName        String              // Nama kota/kabupaten
+  subdistrictId   Int?                // ID kecamatan
+  subdistrictName String?             // Nama kecamatan
+  postalCode      String              // kode pos
+  addressDetail   String              // alamat lengkap
+  isPrimary       Boolean  @default(false)
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  shipments       Shipment[] // relasi ke ongkir/ekspedisi
+}
+
+model Shipment {
+  id            String   @id @default(cuid())
+  courier       String              // jne, tiki, pos, jne:REG, jne:YES, dsb
+  service       String              // REG, YES, OKE
+  description   String?             // deskripsi layanan
+  weight        Int                 // berat barang (gram)
+  cost          Int                 // ongkos kirim
+  etd           String?             // estimasi waktu pengiriman (ex: "2-3 hari")
+  note          String?             // catatan tambahan (jika ada)
+
+  // relasi ke alamat tujuan
+  addressId     String
+  address       UserAddress @relation(fields: [addressId], references: [id], onDelete: Cascade)
+
+  // relasi ke payment (jika dikaitkan dengan order)
+  paymentId     String?
+  payment       Payment?   @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Payment {
+  id                    String        @id @default(uuid())
+  orderId               String        @unique
+  userId                String
+  productId             String?
+  role                  String
+  amount                Int
+  adminFee              Int           @default(0)
+  totalAmount           Int
+  paymentMethod         String        // credit_card, bank_transfer, gopay, etc
+  paymentType           String?       // qris, bank_transfer, credit_card, etc
+  status                PaymentStatus @default(PENDING)
+  snapToken             String?
+  snapRedirectUrl       String?
+  transactionId         String?
+  midtransTransactionId String?
+  transactionStatus     String?
+  fraudStatus           String?
+  paymentCode           String?       // untuk bank transfer
+  vaNumber              String?       // untuk virtual account
+  bankType              String?       // mandiri, bca, bni, etc
+  expiryTime            DateTime?
+  paidAt                DateTime?
+  midtransResponse      String?       // JSON response from Midtrans
+  midtransAction        String?       // JSON.stringify(result.actions)
+  star                  Int?          // untuk payment star (target star)
+  type                  String?       // "star" atau "role"
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  // Relasi
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product  Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  shipments Shipment[]
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  EXPIRED
 }

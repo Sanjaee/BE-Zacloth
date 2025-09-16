@@ -347,6 +347,106 @@ const getProfile = async (req, res) => {
   }
 };
 
+// Get user addresses (authenticated users only)
+const getUserAddresses = async (req, res) => {
+  try {
+    const userId = req.user.id; // From authenticated middleware
+
+    // Get user addresses
+    const addresses = await prisma.userAddress.findMany({
+      where: { userId },
+      orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
+    });
+
+    res.json({
+      success: true,
+      addresses,
+      hasAddresses: addresses.length > 0,
+    });
+  } catch (error) {
+    console.error("Error fetching user addresses:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch user addresses",
+      error: error.message,
+    });
+  }
+};
+
+// Create user address (authenticated users only)
+const createUserAddress = async (req, res) => {
+  try {
+    const userId = req.user.id; // From authenticated middleware
+    const {
+      recipientName,
+      phoneNumber,
+      provinceId,
+      provinceName,
+      cityId,
+      cityName,
+      subdistrictId,
+      subdistrictName,
+      postalCode,
+      addressDetail,
+      isPrimary = false,
+    } = req.body;
+
+    // Validation
+    if (
+      !recipientName ||
+      !phoneNumber ||
+      !provinceId ||
+      !cityId ||
+      !addressDetail
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: recipientName, phoneNumber, provinceId, cityId, addressDetail",
+      });
+    }
+
+    // If this is set as primary, unset other primary addresses
+    if (isPrimary) {
+      await prisma.userAddress.updateMany({
+        where: { userId, isPrimary: true },
+        data: { isPrimary: false },
+      });
+    }
+
+    // Create new address
+    const newAddress = await prisma.userAddress.create({
+      data: {
+        userId,
+        recipientName,
+        phoneNumber,
+        provinceId: parseInt(provinceId),
+        provinceName,
+        cityId: parseInt(cityId),
+        cityName,
+        subdistrictId: subdistrictId ? parseInt(subdistrictId) : null,
+        subdistrictName,
+        postalCode,
+        addressDetail,
+        isPrimary,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Address created successfully",
+      address: newAddress,
+    });
+  } catch (error) {
+    console.error("Error creating user address:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create address",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateUser,
   getAllUsers,
@@ -354,4 +454,6 @@ module.exports = {
   refreshToken,
   updateProfile,
   getProfile,
+  getUserAddresses,
+  createUserAddress,
 };

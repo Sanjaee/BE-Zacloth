@@ -104,6 +104,10 @@ app.use("/visitors", visitorRoutes);
 // Use image routes
 app.use("/images", imageRoutes);
 
+// Use RajaOngkir routes
+const rajaOngkirRoutes = require("./src/routes/rajaOngkirRoutes");
+app.use("/rajaongkir", rajaOngkirRoutes);
+
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
