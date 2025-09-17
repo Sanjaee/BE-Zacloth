@@ -32,10 +32,10 @@ const MIDTRANS_SERVER_KEY = "SB-Mid-server-4zIt7djwCeRdMpgF4gXDjciC"
   //   ? process.env.MIDTRANS_SERVER_KEY_PROD
   //   : process.env.MIDTRANS_SERVER_KEY_SANDBOX;
 
-const MIDTRANS_BASE_URL =
-  process.env.NODE_ENV === "production"
-    ? "https://api.midtrans.com/v2"
-    : "https://api.sandbox.midtrans.com/v2";
+const MIDTRANS_BASE_URL = "https://api.sandbox.midtrans.com/v2";
+  // process.env.NODE_ENV === "production"
+  //   ? "https://api.midtrans.com/v2"
+  //   : "https://api.sandbox.midtrans.com/v2";
 
 class MidtransController {
   // Get all roles (for frontend UI)
