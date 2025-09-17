@@ -27,10 +27,10 @@ function mapMidtransStatusToPrisma(status) {
 }
 
 // Konfigurasi Midtrans
-const MIDTRANS_SERVER_KEY =
-  process.env.NODE_ENV === "production"
-    ? process.env.MIDTRANS_SERVER_KEY_PROD
-    : process.env.MIDTRANS_SERVER_KEY_SANDBOX;
+const MIDTRANS_SERVER_KEY = "SB-Mid-server-4zIt7djwCeRdMpgF4gXDjciC"
+  // process.env.NODE_ENV === "production"
+  //   ? process.env.MIDTRANS_SERVER_KEY_PROD
+  //   : process.env.MIDTRANS_SERVER_KEY_SANDBOX;
 
 const MIDTRANS_BASE_URL =
   process.env.NODE_ENV === "production"
