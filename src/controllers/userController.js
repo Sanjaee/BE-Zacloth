@@ -406,6 +406,19 @@ const createUserAddress = async (req, res) => {
       });
     }
 
+    // Check if user already has 2 addresses (maximum limit)
+    const existingAddressesCount = await prisma.userAddress.count({
+      where: { userId },
+    });
+
+    if (existingAddressesCount >= 2) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Maximum of 2 addresses allowed. Please delete an existing address first.",
+      });
+    }
+
     // If this is set as primary, unset other primary addresses
     if (isPrimary) {
       await prisma.userAddress.updateMany({
@@ -447,6 +460,130 @@ const createUserAddress = async (req, res) => {
   }
 };
 
+// Update user address (authenticated users only)
+const updateUserAddress = async (req, res) => {
+  try {
+    const userId = req.user.id; // From authenticated middleware
+    const addressId = req.params.id;
+    const {
+      recipientName,
+      phoneNumber,
+      provinceId,
+      provinceName,
+      cityId,
+      cityName,
+      subdistrictId,
+      subdistrictName,
+      postalCode,
+      addressDetail,
+      isPrimary = false,
+    } = req.body;
+
+    // Validation
+    if (
+      !recipientName ||
+      !phoneNumber ||
+      !provinceId ||
+      !cityId ||
+      !addressDetail
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required fields: recipientName, phoneNumber, provinceId, cityId, addressDetail",
+      });
+    }
+
+    // Check if address exists and belongs to user
+    const existingAddress = await prisma.userAddress.findFirst({
+      where: { id: addressId, userId },
+    });
+
+    if (!existingAddress) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found",
+      });
+    }
+
+    // If this is set as primary, unset other primary addresses
+    if (isPrimary) {
+      await prisma.userAddress.updateMany({
+        where: { userId, isPrimary: true, id: { not: addressId } },
+        data: { isPrimary: false },
+      });
+    }
+
+    // Update address
+    const updatedAddress = await prisma.userAddress.update({
+      where: { id: addressId },
+      data: {
+        recipientName,
+        phoneNumber,
+        provinceId: parseInt(provinceId),
+        provinceName,
+        cityId: parseInt(cityId),
+        cityName,
+        subdistrictId: subdistrictId ? parseInt(subdistrictId) : null,
+        subdistrictName,
+        postalCode,
+        addressDetail,
+        isPrimary,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Address updated successfully",
+      address: updatedAddress,
+    });
+  } catch (error) {
+    console.error("Error updating user address:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update address",
+      error: error.message,
+    });
+  }
+};
+
+// Delete user address (authenticated users only)
+const deleteUserAddress = async (req, res) => {
+  try {
+    const userId = req.user.id; // From authenticated middleware
+    const addressId = req.params.id;
+
+    // Check if address exists and belongs to user
+    const existingAddress = await prisma.userAddress.findFirst({
+      where: { id: addressId, userId },
+    });
+
+    if (!existingAddress) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found",
+      });
+    }
+
+    // Delete address
+    await prisma.userAddress.delete({
+      where: { id: addressId },
+    });
+
+    res.json({
+      success: true,
+      message: "Address deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting user address:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete address",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateUser,
   getAllUsers,
@@ -456,4 +593,6 @@ module.exports = {
   getProfile,
   getUserAddresses,
   createUserAddress,
+  updateUserAddress,
+  deleteUserAddress,
 };

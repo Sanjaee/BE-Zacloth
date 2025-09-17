@@ -8,6 +8,8 @@ const {
   getProfile,
   getUserAddresses,
   createUserAddress,
+  updateUserAddress,
+  deleteUserAddress,
 } = require("../controllers/userController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
@@ -82,6 +84,24 @@ router.post(
   validateRequest,
   authenticateToken,
   createUserAddress
+);
+
+// Update user address (authenticated users only, web app only)
+router.put(
+  "/addresses/:id",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  updateUserAddress
+);
+
+// Delete user address (authenticated users only, web app only)
+router.delete(
+  "/addresses/:id",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  deleteUserAddress
 );
 
 module.exports = router;
