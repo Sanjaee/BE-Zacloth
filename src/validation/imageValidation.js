@@ -63,6 +63,26 @@ const productDataSchema = z.object({
     )
     .optional(),
   subCategories: z.array(z.string()).optional(),
+  images: z
+    .array(
+      z.object({
+        imageUrl: z.string(),
+        altText: z.string().optional(),
+        order: z.number().optional(),
+      })
+    )
+    .optional(),
+  existingImages: z
+    .array(
+      z.object({
+        id: z.string(),
+        imageUrl: z.string(),
+        altText: z.string().optional(),
+        order: z.number().optional(),
+      })
+    )
+    .optional(),
+  deletedImages: z.array(z.string()).optional(),
 });
 
 // Validation middleware for image upload

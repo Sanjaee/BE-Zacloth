@@ -15,11 +15,7 @@ const {
   productCreationSecurity,
   validateRequest,
 } = require("../middleware/security");
-const { upload } = require("../controllers/imageController");
-const {
-  validateImageUpload,
-  validateProductData,
-} = require("../validation/imageValidation");
+const { validateProductData } = require("../validation/imageValidation");
 
 const router = express.Router();
 
@@ -49,27 +45,23 @@ router.post(
   createProduct
 );
 
-// Create new product with multiple images upload (Admin only, with enhanced security)
+// Create new product with image URLs (Admin only, with enhanced security)
 router.post(
   "/with-image",
   productCreationSecurity,
   validateRequest,
   authenticateToken,
   requireAdmin,
-  upload.array("images", 10), // Allow up to 10 images
-  validateImageUpload,
   createProductWithImage
 );
 
-// Update product with multiple images upload by ID (Admin only, with enhanced security)
+// Update product with image URLs by ID (Admin only, with enhanced security)
 router.put(
   "/:id/with-image",
   productCreationSecurity,
   validateRequest,
   authenticateToken,
   requireAdmin,
-  upload.array("images", 10), // Allow up to 10 images
-  validateImageUpload,
   updateProductWithImage
 );
 

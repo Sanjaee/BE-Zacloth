@@ -1,5 +1,4 @@
 const { PrismaClient } = require("@prisma/client");
-const { uploadImage } = require("./imageController");
 const { generateSlug, generateUniqueSlug } = require("../utils/slugGenerator");
 
 const prisma = new PrismaClient();
@@ -404,7 +403,7 @@ const getProductForCheckout = async (req, res) => {
   }
 };
 
-// Create product with multiple images upload
+// Create product with image URLs
 const createProductWithImage = async (req, res) => {
   try {
     // Get user info from JWT token (set by authenticateToken middleware)
@@ -416,28 +415,6 @@ const createProductWithImage = async (req, res) => {
       return res.status(403).json({
         message: "Akses ditolak. Hanya admin yang dapat menambah produk.",
       });
-    }
-
-    // Parse form data - handle both JSON and FormData
-    let productData;
-    if (req.body.data) {
-      // If data is sent as FormData, parse the JSON string
-      console.log("Raw data received:", req.body.data);
-      try {
-        productData = JSON.parse(req.body.data);
-        console.log("Parsed product data:", productData);
-      } catch (parseError) {
-        console.error("Error parsing product data:", parseError);
-        console.error("Raw data that failed to parse:", req.body.data);
-        return res.status(400).json({
-          success: false,
-          message: "Invalid JSON in form data",
-          error: parseError.message,
-        });
-      }
-    } else {
-      // If data is sent as regular JSON
-      productData = req.body;
     }
 
     const {
@@ -453,11 +430,12 @@ const createProductWithImage = async (req, res) => {
       fullPrice,
       name,
       prodigyId,
-      imageUrl, // This can be a URL or will be replaced by uploaded image
+      imageUrl,
       genders,
       skuData,
       subCategories,
-    } = productData;
+      images, // Array of image URLs from Cloudinary
+    } = req.body;
 
     // Debug logging
     console.log("Product creation request data:", {
@@ -469,7 +447,7 @@ const createProductWithImage = async (req, res) => {
       fullPrice,
       userId,
       userRole,
-      hasImages: req.files ? req.files.length : 0,
+      hasImages: images ? images.length : 0,
     });
 
     // Validate required fields
@@ -511,10 +489,10 @@ const createProductWithImage = async (req, res) => {
       return !!existing;
     });
 
-    // Determine main image URL - use first uploaded image if available, otherwise use provided URL
+    // Use provided imageUrl or first image from images array
     let finalImageUrl = imageUrl || "";
-    if (req.files && req.files.length > 0) {
-      finalImageUrl = `/assets/${req.files[0].filename}`;
+    if (!finalImageUrl && images && images.length > 0) {
+      finalImageUrl = images[0].imageUrl;
     }
 
     // Create product with related data
@@ -558,10 +536,10 @@ const createProductWithImage = async (req, res) => {
         // Create multiple images with proper ordering
         images: {
           create:
-            req.files?.map((file, index) => ({
-              imageUrl: `/assets/${file.filename}`,
-              altText: `${name} - Image ${index + 1}`,
-              order: index, // Order based on array position
+            images?.map((img, index) => ({
+              imageUrl: img.imageUrl,
+              altText: img.altText || `${name} - Image ${index + 1}`,
+              order: img.order || index,
             })) || [],
         },
       },
@@ -707,27 +685,7 @@ const updateProduct = async (req, res) => {
       });
     }
 
-    // Handle deleted images - delete files from assets folder
-    if (deletedImages && deletedImages.length > 0) {
-      const fs = require("fs");
-      const path = require("path");
-
-      for (const imageUrl of deletedImages) {
-        if (imageUrl && imageUrl.startsWith("/assets/")) {
-          const filename = path.basename(imageUrl);
-          const filePath = path.join(__dirname, "../../assets", filename);
-
-          try {
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-              console.log("Deleted image file:", filePath);
-            }
-          } catch (error) {
-            console.error("Error deleting image file:", filePath, error);
-          }
-        }
-      }
-    }
+    // Note: Image files are now stored in Cloudinary, no local file deletion needed
 
     // Handle existing image order update and deletion
     if (existingImages && existingImages.length > 0) {
@@ -831,7 +789,7 @@ const updateProduct = async (req, res) => {
   }
 };
 
-// Update product with image upload
+// Update product with image URLs
 const updateProductWithImage = async (req, res) => {
   try {
     // Get user info from JWT token (set by authenticateToken middleware)
@@ -846,16 +804,6 @@ const updateProductWithImage = async (req, res) => {
     }
 
     const { id } = req.params;
-
-    // Parse form data - handle both JSON and FormData
-    let productData;
-    if (req.body.data) {
-      // If data is sent as FormData, parse the JSON string
-      productData = JSON.parse(req.body.data);
-    } else {
-      // If data is sent as regular JSON
-      productData = req.body;
-    }
 
     const {
       isOnSale,
@@ -876,7 +824,8 @@ const updateProductWithImage = async (req, res) => {
       subCategories,
       existingImages,
       deletedImages,
-    } = productData;
+      images, // Array of new image URLs from Cloudinary
+    } = req.body;
 
     // Debug logging
     console.log("Product update with image request data:", {
@@ -889,7 +838,7 @@ const updateProductWithImage = async (req, res) => {
       fullPrice,
       userId,
       userRole,
-      hasImage: !!req.file,
+      hasNewImages: images ? images.length : 0,
     });
 
     // Validate required fields
@@ -957,41 +906,15 @@ const updateProductWithImage = async (req, res) => {
     if (imageUrl) {
       // Use the selected main image from frontend
       finalImageUrl = imageUrl;
-    } else if (req.files && req.files.length > 0) {
-      // Fallback to first uploaded image if no main image selected
-      finalImageUrl = `/assets/${req.files[0].filename}`;
+    } else if (images && images.length > 0) {
+      // Fallback to first new image if no main image selected
+      finalImageUrl = images[0].imageUrl;
     }
 
-    // Handle deleted images - delete files from assets folder
-    if (deletedImages && deletedImages.length > 0) {
-      const fs = require("fs");
-      const path = require("path");
-
-      for (const imageUrl of deletedImages) {
-        if (imageUrl && imageUrl.startsWith("/assets/")) {
-          const filename = path.basename(imageUrl);
-          const filePath = path.join(__dirname, "../../assets", filename);
-
-          try {
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-              console.log("Deleted image file:", filePath);
-            }
-          } catch (error) {
-            console.error("Error deleting image file:", filePath, error);
-          }
-        }
-      }
-    }
-
-    // Handle image management - we'll update images separately after product update
+    // Handle image management
     let imagesToCreate = [];
 
-    if (req.files && req.files.length > 0) {
-      // If new images are uploaded, we need to handle existing images
-      const fs = require("fs");
-      const path = require("path");
-
+    if (images && images.length > 0) {
       // Get existing images to potentially delete
       const currentExistingImages = await prisma.productImage.findMany({
         where: { productId: id },
@@ -1005,21 +928,6 @@ const updateProductWithImage = async (req, res) => {
         // Delete images that are not in the keep list
         for (const img of currentExistingImages) {
           if (!keepImageIds.includes(img.id)) {
-            // Only delete file if it's not already in deletedImages (to avoid double deletion)
-            if (
-              img.imageUrl &&
-              img.imageUrl.startsWith("/assets/") &&
-              (!deletedImages || !deletedImages.includes(img.imageUrl))
-            ) {
-              const oldImagePath = path.join(
-                __dirname,
-                "../../assets",
-                path.basename(img.imageUrl)
-              );
-              if (fs.existsSync(oldImagePath)) {
-                fs.unlinkSync(oldImagePath);
-              }
-            }
             await prisma.productImage.delete({
               where: { id: img.id },
             });
@@ -1039,40 +947,26 @@ const updateProductWithImage = async (req, res) => {
           ...existingImages.map((img) => img.order),
           -1
         );
-        imagesToCreate = req.files.map((file, index) => ({
-          imageUrl: `/assets/${file.filename}`,
-          altText: `${name} - Image ${index + 1}`,
+        imagesToCreate = images.map((img, index) => ({
+          imageUrl: img.imageUrl,
+          altText: img.altText || `${name} - Image ${index + 1}`,
           order: maxOrder + 1 + index,
         }));
       } else {
-        // If no existingImages provided, delete all existing images (old behavior)
-        for (const img of currentExistingImages) {
-          if (img.imageUrl && img.imageUrl.startsWith("/assets/")) {
-            const oldImagePath = path.join(
-              __dirname,
-              "../../assets",
-              path.basename(img.imageUrl)
-            );
-            if (fs.existsSync(oldImagePath)) {
-              fs.unlinkSync(oldImagePath);
-            }
-          }
-        }
-
-        // Delete old image records
+        // If no existingImages provided, delete all existing images
         await prisma.productImage.deleteMany({
           where: { productId: id },
         });
 
         // Prepare new images to create
-        imagesToCreate = req.files.map((file, index) => ({
-          imageUrl: `/assets/${file.filename}`,
-          altText: `${name} - Image ${index + 1}`,
+        imagesToCreate = images.map((img, index) => ({
+          imageUrl: img.imageUrl,
+          altText: img.altText || `${name} - Image ${index + 1}`,
           order: index,
         }));
       }
     } else if (existingImages && existingImages.length > 0) {
-      // If no new files but existing images order is provided, just update the order
+      // If no new images but existing images order is provided, just update the order
       for (const img of existingImages) {
         await prisma.productImage.update({
           where: { id: img.id },
@@ -1081,12 +975,8 @@ const updateProductWithImage = async (req, res) => {
       }
     }
 
-    // Handle deleted images from database when no new files are uploaded
-    if (
-      deletedImages &&
-      deletedImages.length > 0 &&
-      (!req.files || req.files.length === 0)
-    ) {
+    // Handle deleted images from database
+    if (deletedImages && deletedImages.length > 0) {
       // Delete images from database that are in deletedImages list
       for (const imageUrl of deletedImages) {
         await prisma.productImage.deleteMany({
@@ -1141,7 +1031,7 @@ const updateProductWithImage = async (req, res) => {
               name: subCat,
             })) || [],
         },
-        // Create new images if files are uploaded
+        // Create new images if provided
         ...(imagesToCreate.length > 0 && {
           images: {
             create: imagesToCreate,
@@ -1214,23 +1104,7 @@ const deleteProduct = async (req, res) => {
       });
     }
 
-    // Delete associated image file if it exists and is not a URL
-    if (
-      existingProduct.imageUrl &&
-      existingProduct.imageUrl.startsWith("/assets/")
-    ) {
-      const fs = require("fs");
-      const path = require("path");
-      const imagePath = path.join(
-        __dirname,
-        "../../assets",
-        path.basename(existingProduct.imageUrl)
-      );
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-        console.log("Deleted image file:", imagePath);
-      }
-    }
+    // Note: Image files are now stored in Cloudinary, no local file deletion needed
 
     // Delete product (related data will be deleted automatically due to cascade)
     await prisma.product.delete({

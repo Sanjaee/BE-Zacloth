@@ -4,7 +4,6 @@ const path = require("path");
 const productRoutes = require("./src/routes/productRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const qrRoutes = require("./src/routes/qrRoutes");
-const imageRoutes = require("./src/routes/imageRoutes");
 const {
   securityHeaders,
   corsOptions,
@@ -100,9 +99,6 @@ app.use("/qr", qrRoutes);
 // Use visitor routes
 const visitorRoutes = require("./src/routes/visitorRoutes");
 app.use("/visitors", visitorRoutes);
-
-// Use image routes
-app.use("/images", imageRoutes);
 
 // Use RajaOngkir routes
 const rajaOngkirRoutes = require("./src/routes/rajaOngkirRoutes");
