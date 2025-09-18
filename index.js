@@ -108,6 +108,10 @@ app.use("/rajaongkir", rajaOngkirRoutes);
 const paymentRoutes = require("./src/routes/paymentRoutes");
 app.use("/payments", paymentRoutes);
 
+// Use Plisio routes
+const plisioRoutes = require("./src/routes/plisioRoutes");
+app.use("/api/plisio", plisioRoutes);
+
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });

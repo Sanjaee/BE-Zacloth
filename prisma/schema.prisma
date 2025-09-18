@@ -179,16 +179,13 @@ model Payment {
   orderId               String        @unique
   userId                String
   productId             String?
-  role                  String
   amount                Int
   adminFee              Int           @default(0)
   totalAmount           Int
   paymentMethod         String        // credit_card, bank_transfer, gopay, etc
   paymentType           String?       // qris, bank_transfer, credit_card, etc
   status                PaymentStatus @default(PENDING)
-  snapToken             String?
   snapRedirectUrl       String?
-  transactionId         String?
   midtransTransactionId String?
   transactionStatus     String?
   fraudStatus           String?
@@ -199,8 +196,6 @@ model Payment {
   paidAt                DateTime?
   midtransResponse      String?       // JSON response from Midtrans
   midtransAction        String?       // JSON.stringify(result.actions)
-  star                  Int?          // untuk payment star (target star)
-  type                  String?       // "star" atau "role"
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
