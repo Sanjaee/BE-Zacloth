@@ -4,7 +4,7 @@ const helmet = require("helmet");
 // Rate limiting for login attempts
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  max: 3000000, // Limit each IP to 5 requests per windowMs
   message: {
     success: false,
     message: "Too many login attempts, please try again later",
@@ -18,7 +18,7 @@ const loginLimiter = rateLimit({
 // Rate limiting for general API requests
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 3000000, // Limit each IP to 100 requests per windowMs
   message: {
     success: false,
     message: "Too many requests, please try again later",
@@ -31,7 +31,7 @@ const apiLimiter = rateLimit({
 // Rate limiting for user generation (admin only)
 const userGenerationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Limit each IP to 10 user generations per hour
+  max: 3000000, // Limit each IP to 10 user generations per hour
   message: {
     success: false,
     message: "Too many user generation attempts, please try again later",
@@ -44,7 +44,7 @@ const userGenerationLimiter = rateLimit({
 // Rate limiting for visitor tracking (more lenient)
 const visitorTrackingLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 30000, // Limit each IP to 30 visitor tracking requests per minute
+  max: 3000000, // Limit each IP to 30 visitor tracking requests per minute
   message: {
     success: false,
     message: "Too many visitor tracking requests, please try again later",
