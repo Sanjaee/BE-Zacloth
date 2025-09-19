@@ -1,9 +1,12 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const passport = require("passport");
+const session = require("express-session");
 const productRoutes = require("./src/routes/productRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const qrRoutes = require("./src/routes/qrRoutes");
+const authRoutes = require("./src/routes/authRoutes");
 const {
   securityHeaders,
   corsOptions,
@@ -12,6 +15,9 @@ const {
   requestLogger,
 } = require("./src/middleware/security");
 
+// Import passport configuration
+require("./src/config/passportConfig");
+require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -62,6 +68,21 @@ app.use(validateRequest);
 app.use(requestLogger);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "your-session-secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === "production",
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
+
+// Initialize Passport
+app.use(passport.initialize());
 
 // Endpoint welcome
 app.get("/", (req, res) => {
@@ -86,6 +107,9 @@ app.get("/test-assets-cors", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Use auth routes (Google OAuth)
+app.use("/auth", authRoutes);
 
 // Use product routes
 app.use("/products", productRoutes);

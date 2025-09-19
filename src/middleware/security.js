@@ -44,7 +44,7 @@ const userGenerationLimiter = rateLimit({
 // Rate limiting for visitor tracking (more lenient)
 const visitorTrackingLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 30, // Limit each IP to 30 visitor tracking requests per minute
+  max: 30000, // Limit each IP to 30 visitor tracking requests per minute
   message: {
     success: false,
     message: "Too many visitor tracking requests, please try again later",

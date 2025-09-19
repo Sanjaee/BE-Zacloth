@@ -10,8 +10,9 @@ datasource db {
 model User {
   id        String    @id @default(cuid())
   username  String    @unique   // untuk login
+  googleId  String?   @unique
   email     String?   @unique   // opsional, kalau diisi harus unik
-  password  String
+  password  String?
   role      String    @default("client") // admin atau client
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
