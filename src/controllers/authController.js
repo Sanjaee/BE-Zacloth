@@ -135,7 +135,7 @@ const authController = {
         },
         process.env.JWT_SECRET || "your-secret-key",
         {
-          expiresIn: "15m",
+          expiresIn: "7d",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }
@@ -175,7 +175,7 @@ const authController = {
         },
         process.env.JWT_SECRET || "your-secret-key",
         {
-          expiresIn: "15m",
+          expiresIn: "7d",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }
@@ -283,7 +283,7 @@ const authController = {
         },
         process.env.JWT_SECRET || "your-secret-key",
         {
-          expiresIn: "15m",
+          expiresIn: "7d",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }
@@ -352,7 +352,7 @@ const authController = {
           },
           process.env.JWT_SECRET || "your-secret-key",
           {
-            expiresIn: "15m",
+            expiresIn: "7d",
             issuer: "zacloth-api",
             audience: "zacloth-client",
           }
@@ -426,7 +426,7 @@ const authController = {
           },
           process.env.JWT_SECRET || "your-secret-key",
           {
-            expiresIn: "15m",
+            expiresIn: "7d",
             issuer: "zacloth-api",
             audience: "zacloth-client",
           }
@@ -492,7 +492,7 @@ const authController = {
         },
         process.env.JWT_SECRET || "your-secret-key",
         {
-          expiresIn: "15m",
+          expiresIn: "7d",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }

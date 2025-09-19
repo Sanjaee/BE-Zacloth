@@ -21,7 +21,7 @@ const generateTokens = (user) => {
   };
 
   const accessToken = jwt.sign(payload, JWT_SECRET, {
-    expiresIn: "15m", // Short-lived access token
+    expiresIn: "7d", // Short-lived access token
     issuer: "zacloth-api",
     audience: "zacloth-client",
   });
