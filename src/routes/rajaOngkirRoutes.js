@@ -41,4 +41,26 @@ router.post(
   rajaOngkirController.getCost.bind(rajaOngkirController)
 );
 
+// Address routes (authentication required)
+router.get(
+  "/addresses",
+  authenticateToken,
+  rajaOngkirController.getUserAddresses.bind(rajaOngkirController)
+);
+router.post(
+  "/addresses",
+  authenticateToken,
+  rajaOngkirController.createUserAddress.bind(rajaOngkirController)
+);
+router.put(
+  "/addresses/:id",
+  authenticateToken,
+  rajaOngkirController.updateUserAddress.bind(rajaOngkirController)
+);
+router.delete(
+  "/addresses/:id",
+  authenticateToken,
+  rajaOngkirController.deleteUserAddress.bind(rajaOngkirController)
+);
+
 module.exports = router;

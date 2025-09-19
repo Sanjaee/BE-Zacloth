@@ -42,20 +42,6 @@ router.get("/profile", authenticateToken, authController.getProfile);
 router.get("/profile/:userId", authController.getProfileById);
 router.put("/profile", authenticateToken, authController.updateProfile);
 
-// Address routes
-router.get("/addresses", authenticateToken, authController.getUserAddresses);
-router.post("/addresses", authenticateToken, authController.createUserAddress);
-router.put(
-  "/addresses/:id",
-  authenticateToken,
-  authController.updateUserAddress
-);
-router.delete(
-  "/addresses/:id",
-  authenticateToken,
-  authController.deleteUserAddress
-);
-
 // Logout
 router.post("/logout", authenticateToken, authController.logout);
 
