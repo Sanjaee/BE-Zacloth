@@ -2,8 +2,8 @@
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const { PrismaClient } = require("@prisma/client");
+const crypto = require("crypto");
 const prisma = new PrismaClient();
-const { v4: uuidv4 } = require("uuid");
 
 // Only configure Google Strategy if environment variables are present
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
