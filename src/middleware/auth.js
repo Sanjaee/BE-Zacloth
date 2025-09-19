@@ -67,9 +67,12 @@ const authenticateToken = async (req, res, next) => {
 
     const decoded = verifyToken(token);
 
+    // Handle both 'id' and 'userId' fields for backward compatibility
+    const userId = decoded.id || decoded.userId;
+
     // Verify user still exists and is active
     const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
+      where: { id: userId },
       select: {
         id: true,
         username: true,
@@ -146,9 +149,12 @@ const refreshToken = async (req, res) => {
       });
     }
 
+    // Handle both 'id' and 'userId' fields for backward compatibility
+    const userId = decoded.id || decoded.userId;
+
     // Get user data
     const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
+      where: { id: userId },
       select: {
         id: true,
         username: true,

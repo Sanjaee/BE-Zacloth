@@ -13,13 +13,12 @@ const authController = {
       }
 
       const user = await prisma.user.findUnique({
-        where: { userId: req.user.userId },
+        where: { id: req.user.id },
         select: {
-          userId: true,
+          id: true,
           googleId: true,
           username: true,
           email: true,
-          avatarUrl: true,
           createdAt: true,
         },
       });
@@ -45,11 +44,10 @@ const authController = {
       }
 
       const user = await prisma.user.findUnique({
-        where: { userId: userId },
+        where: { id: userId },
         select: {
-          userId: true,
+          id: true,
           username: true,
-          avatarUrl: true,
           createdAt: true,
         },
       });
@@ -85,17 +83,15 @@ const authController = {
       }
 
       const updatedUser = await prisma.user.update({
-        where: { userId: req.user.userId },
+        where: { id: req.user.id },
         data: {
           ...(username && { username }),
-          ...(avatarUrl && { avatarUrl }),
         },
         select: {
-          userId: true,
+          id: true,
           googleId: true,
           username: true,
           email: true,
-          avatarUrl: true,
           createdAt: true,
         },
       });
@@ -118,12 +114,11 @@ const authController = {
 
       // Verify user exists with complete data
       const user = await prisma.user.findUnique({
-        where: { userId },
+        where: { id: userId },
         select: {
-          userId: true,
+          id: true,
           email: true,
           username: true,
-          avatarUrl: true,
         },
       });
 
@@ -134,22 +129,25 @@ const authController = {
       // Generate JWT token
       const token = jwt.sign(
         {
-          userId: user.userId,
+          id: user.id, // Use 'id' to match credential login format
           email: user.email,
           username: user.username,
         },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "7d" }
+        {
+          expiresIn: "7d",
+          issuer: "zacloth-api",
+          audience: "zacloth-client",
+        }
       );
 
       const responseData = {
         success: true,
         token,
         user: {
-          userId: user.userId,
+          id: user.id,
           email: user.email,
           username: user.username,
-          avatarUrl: user.avatarUrl,
           createdAt: user.createdAt,
           role: user.role,
         },
@@ -171,12 +169,16 @@ const authController = {
 
       const token = jwt.sign(
         {
-          userId: req.user.userId,
+          id: req.user.id, // Use 'id' to match credential login format
           email: req.user.email,
           username: req.user.username,
         },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "7d" }
+        {
+          expiresIn: "7d",
+          issuer: "zacloth-api",
+          audience: "zacloth-client",
+        }
       );
 
       res.json({ token, user: req.user });
@@ -199,17 +201,22 @@ const authController = {
       try {
         const decoded = jwt.verify(
           token,
-          process.env.JWT_SECRET || "your-secret-key"
+          process.env.JWT_SECRET || "your-secret-key",
+          {
+            issuer: "zacloth-api",
+            audience: "zacloth-client",
+          }
         );
 
+        // Handle both 'id' and 'userId' fields for backward compatibility
+        const userId = decoded.id || decoded.userId;
         const user = await prisma.user.findUnique({
-          where: { userId: decoded.userId },
+          where: { id: userId },
           select: {
-            userId: true,
+            id: true,
             googleId: true,
             username: true,
             email: true,
-            avatarUrl: true,
             createdAt: true,
             role: true,
           },
@@ -226,15 +233,16 @@ const authController = {
         // If JWT verification fails, try parsing as user object (fallback)
         try {
           const userData = JSON.parse(token);
-          if (userData.userId) {
+          if (userData.userId || userData.id) {
+            // Handle both 'id' and 'userId' fields for backward compatibility
+            const userId = userData.id || userData.userId;
             const user = await prisma.user.findUnique({
-              where: { userId: userData.userId },
+              where: { id: userId },
               select: {
-                userId: true,
+                id: true,
                 googleId: true,
                 username: true,
                 email: true,
-                avatarUrl: true,
                 createdAt: true,
                 role: true,
               },
@@ -268,23 +276,31 @@ const authController = {
       // Generate JWT token for the authenticated user
       const token = jwt.sign(
         {
-          userId: user.userId,
+          id: user.id, // Use 'id' to match credential login format
           email: user.email,
           username: user.username,
           role: user.role,
         },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "7d" }
+        {
+          expiresIn: "7d",
+          issuer: "zacloth-api",
+          audience: "zacloth-client",
+        }
       );
 
       // Generate refresh token
       const refreshToken = jwt.sign(
         {
-          userId: user.userId,
+          id: user.id, // Use 'id' to match credential login format
           type: "refresh",
         },
-        process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "30d" }
+        process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key",
+        {
+          expiresIn: "30d",
+          issuer: "zacloth-api",
+          audience: "zacloth-client",
+        }
       );
 
       res.json({
@@ -293,8 +309,7 @@ const authController = {
         accessToken: token,
         refreshToken: refreshToken,
         user: {
-          id: user.userId,
-          userId: user.userId,
+          id: user.id,
           username: user.username,
           email: user.email,
           role: user.role,
@@ -330,22 +345,30 @@ const authController = {
         // User exists, generate tokens
         const token = jwt.sign(
           {
-            userId: user.id,
+            id: user.id, // Use 'id' to match credential login format
             email: user.email,
             username: user.username,
             role: user.role,
           },
           process.env.JWT_SECRET || "your-secret-key",
-          { expiresIn: "7d" }
+          {
+            expiresIn: "7d",
+            issuer: "zacloth-api",
+            audience: "zacloth-client",
+          }
         );
 
         const refreshToken = jwt.sign(
           {
-            userId: user.id,
+            id: user.id, // Use 'id' to match credential login format
             type: "refresh",
           },
-          process.env.JWT_SECRET || "your-secret-key",
-          { expiresIn: "30d" }
+          process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key",
+          {
+            expiresIn: "30d",
+            issuer: "zacloth-api",
+            audience: "zacloth-client",
+          }
         );
 
         return res.json({
@@ -354,7 +377,7 @@ const authController = {
           accessToken: token,
           refreshToken: refreshToken,
           user: {
-            userId: user.id,
+            id: user.id,
             username: user.username,
             email: user.email,
             role: user.role,
@@ -396,22 +419,30 @@ const authController = {
 
         const token = jwt.sign(
           {
-            userId: updatedUser.id,
+            id: updatedUser.id, // Use 'id' to match credential login format
             email: updatedUser.email,
             username: updatedUser.username,
             role: updatedUser.role,
           },
           process.env.JWT_SECRET || "your-secret-key",
-          { expiresIn: "7d" }
+          {
+            expiresIn: "7d",
+            issuer: "zacloth-api",
+            audience: "zacloth-client",
+          }
         );
 
         const refreshToken = jwt.sign(
           {
-            userId: updatedUser.id,
+            id: updatedUser.id, // Use 'id' to match credential login format
             type: "refresh",
           },
-          process.env.JWT_SECRET || "your-secret-key",
-          { expiresIn: "30d" }
+          process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key",
+          {
+            expiresIn: "30d",
+            issuer: "zacloth-api",
+            audience: "zacloth-client",
+          }
         );
 
         return res.json({
@@ -420,7 +451,7 @@ const authController = {
           accessToken: token,
           refreshToken: refreshToken,
           user: {
-            userId: updatedUser.id,
+            id: updatedUser.id,
             username: updatedUser.username,
             email: updatedUser.email,
             role: updatedUser.role,
@@ -454,22 +485,30 @@ const authController = {
 
       const token = jwt.sign(
         {
-          userId: newUser.id,
+          id: newUser.id, // Use 'id' to match credential login format
           email: newUser.email,
           username: newUser.username,
           role: newUser.role,
         },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "7d" }
+        {
+          expiresIn: "7d",
+          issuer: "zacloth-api",
+          audience: "zacloth-client",
+        }
       );
 
       const refreshToken = jwt.sign(
         {
-          userId: newUser.id,
+          id: newUser.id, // Use 'id' to match credential login format
           type: "refresh",
         },
-        process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "30d" }
+        process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key",
+        {
+          expiresIn: "30d",
+          issuer: "zacloth-api",
+          audience: "zacloth-client",
+        }
       );
 
       res.json({
@@ -478,7 +517,7 @@ const authController = {
         accessToken: token,
         refreshToken: refreshToken,
         user: {
-          userId: newUser.id,
+          id: newUser.id,
           username: newUser.username,
           email: newUser.email,
           role: newUser.role,
