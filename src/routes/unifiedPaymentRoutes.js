@@ -38,4 +38,10 @@ router.get(
   UnifiedPaymentController.getUserPayments
 );
 
+// Midtrans callback endpoint (no authentication required)
+router.post("/midtrans-callback", UnifiedPaymentController.midtransCallback);
+
+// Payment status polling endpoint (no authentication required for polling)
+router.get("/payment/:orderId", UnifiedPaymentController.getPaymentStatus);
+
 module.exports = router;

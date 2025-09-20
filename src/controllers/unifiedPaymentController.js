@@ -1,7 +1,33 @@
 require("dotenv").config();
 const { PrismaClient } = require("@prisma/client");
+const axios = require("axios");
+const crypto = require("crypto");
 
 const prisma = new PrismaClient();
+
+// Konfigurasi Midtrans
+const MIDTRANS_SERVER_KEY = "SB-Mid-server-4zIt7djwCeRdMpgF4gXDjciC";
+const MIDTRANS_BASE_URL = "https://api.sandbox.midtrans.com/v2";
+
+// Helper: Map Midtrans status to Prisma enum
+function mapMidtransStatusToPrisma(status) {
+  switch (status) {
+    case "pending":
+      return "PENDING";
+    case "settlement":
+      return "SUCCESS";
+    case "capture":
+      return "SUCCESS";
+    case "deny":
+      return "FAILED";
+    case "cancel":
+      return "CANCELLED";
+    case "expire":
+      return "EXPIRED";
+    default:
+      return "PENDING";
+  }
+}
 
 class UnifiedPaymentController {
   // Create payment - unified for both Midtrans and Plisio
@@ -141,7 +167,6 @@ class UnifiedPaymentController {
   static async getPaymentStatus(req, res) {
     try {
       const { orderId } = req.params;
-
       const payment = await prisma.payment.findUnique({
         where: { orderId: orderId },
         include: {
@@ -150,98 +175,92 @@ class UnifiedPaymentController {
           shipments: true,
         },
       });
-
       if (!payment) {
-        return res.status(400).json({
-          success: false,
-          message: "Payment not found",
-        });
+        return res.status(404).json({ error: "Payment not found" });
       }
+      // Get status from Midtrans
+      const auth = Buffer.from(MIDTRANS_SERVER_KEY + ":").toString("base64");
+      const response = await axios.get(
+        `${MIDTRANS_BASE_URL}/${orderId}/status`,
+        {
+          headers: {
+            Authorization: `Basic ${auth}`,
+          },
+        }
+      );
+      const result = response.data;
+      // Extract additional fields from Midtrans response
+      let paymentUpdate = {
+        status: mapMidtransStatusToPrisma(result.transaction_status),
+        transactionStatus: result.transaction_status,
+        fraudStatus: result.fraud_status || null,
+        midtransResponse: JSON.stringify(result),
+      };
+      if (
+        result.va_numbers &&
+        Array.isArray(result.va_numbers) &&
+        result.va_numbers.length > 0
+      ) {
+        paymentUpdate.vaNumber = result.va_numbers[0].va_number;
+        paymentUpdate.bankType = result.va_numbers[0].bank;
+      }
+      if (result.permata_va_number) {
+        paymentUpdate.vaNumber = result.permata_va_number;
+        paymentUpdate.bankType = "permata";
+      }
+      if (result.payment_code) paymentUpdate.paymentCode = result.payment_code;
+      if (result.expiry_time)
+        paymentUpdate.expiryTime = new Date(result.expiry_time);
+      if (result.paid_at) paymentUpdate.paidAt = new Date(result.paid_at);
+      // QRIS/GoPay
+      if (result.actions && Array.isArray(result.actions)) {
+        const qrAction = result.actions.find(
+          (a) => a.name === "generate-qr-code"
+        );
+        if (qrAction && qrAction.url)
+          paymentUpdate.snapRedirectUrl = qrAction.url;
+      }
+      // If payment is successful, send notification
+      if (
+        mapMidtransStatusToPrisma(result.transaction_status) === "SUCCESS" &&
+        payment.userId
+      ) {
+        // Log payment success
+        console.log(
+          `Payment success for order ${payment.orderId}, user ${payment.userId}, amount: ${payment.amount}`
+        );
 
-      // If it's a Plisio payment, get status from Plisio API
-      if (payment.paymentType === "plisio" && payment.midtransTransactionId) {
+        // Kirim email ke admin
         try {
-          const axios = require("axios");
-          const PLISIO_API_KEY =
-            "eB_tpJ0APoZFakdp7HIH-drEhVjGwBNCMi-VaDxMtUulbgDsDDtUS86Hu7BkjzBG";
-          const PLISIO_BASE_URL = "https://api.plisio.net/api/v1";
-
-          const response = await axios.get(`${PLISIO_BASE_URL}/operations`, {
-            params: {
-              api_key: PLISIO_API_KEY,
-              txn_id: payment.midtransTransactionId,
-            },
+          const { sendAdminPaymentSuccessEmail } = require("../utils/email");
+          await sendAdminPaymentSuccessEmail({
+            to: "afrizaahmad18@gmail.com",
+            type: "product",
+            username: payment.user?.username || "User",
+            email: payment.user?.email || "No email",
+            amount: payment.amount,
+            orderId: payment.orderId,
           });
-
-          const result = response.data;
-
-          if (result.status === "success" && result.data.length > 0) {
-            const plisioData = result.data[0];
-
-            // Map Plisio status to our system
-            const mapPlisioStatusToPrisma = (status) => {
-              switch (status) {
-                case "pending":
-                  return "PENDING";
-                case "completed":
-                  return "SUCCESS";
-                case "cancelled":
-                  return "CANCELLED";
-                case "expired":
-                  return "EXPIRED";
-                case "failed":
-                  return "FAILED";
-                default:
-                  return "PENDING";
-              }
-            };
-
-            const mappedStatus = mapPlisioStatusToPrisma(plisioData.status);
-
-            // Update payment status
-            let paymentUpdate = {
-              status: mappedStatus,
-              transactionStatus: plisioData.status,
-              midtransResponse: JSON.stringify(plisioData),
-              updatedAt: new Date(),
-            };
-
-            if (plisioData.paid_at) {
-              paymentUpdate.paidAt = new Date(plisioData.paid_at * 1000);
-            }
-
-            const updatedPayment = await prisma.payment.update({
-              where: { orderId: orderId },
-              data: paymentUpdate,
-              include: { user: true, product: true, shipments: true },
-            });
-
-            return res.json({
-              success: true,
-              data: {
-                ...updatedPayment,
-                status: plisioData.status,
-                plisioData: plisioData,
-              },
-            });
-          }
-        } catch (error) {
-          console.error("Error fetching from Plisio API:", error);
+        } catch (err) {
+          console.error("Gagal mengirim email ke admin:", err);
         }
       }
-
-      // For Midtrans payments or if Plisio API fails, return current payment status
+      const updatedPayment = await prisma.payment.update({
+        where: { orderId: orderId },
+        data: paymentUpdate,
+        include: { user: true, product: true, shipments: true },
+      });
       res.json({
         success: true,
-        data: payment,
+        data: {
+          ...updatedPayment,
+          status: result.transaction_status,
+          fraudStatus: result.fraud_status,
+        },
       });
     } catch (error) {
       console.error("Get payment status error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Internal server error",
-        error: error.message,
-      });
+      res.status(500).json({ error: "Internal server error" });
     }
   }
 
@@ -434,6 +453,132 @@ class UnifiedPaymentController {
       });
     } catch (error) {
       console.error("Get user payments error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+
+  // Midtrans callback handler
+  static async midtransCallback(req, res) {
+    try {
+      const { order_id, status_code, gross_amount, signature_key } = req.body;
+
+      console.log("Midtrans callback received:", {
+        order_id,
+        status_code,
+        gross_amount,
+        signature_key,
+      });
+
+      // Verify signature
+      const expectedSignature = crypto
+        .createHash("sha512")
+        .update(order_id + status_code + gross_amount + MIDTRANS_SERVER_KEY)
+        .digest("hex");
+
+      if (signature_key !== expectedSignature) {
+        console.error("Invalid signature in Midtrans callback");
+        return res.status(400).json({ error: "Invalid signature" });
+      }
+
+      // Find payment by order_id
+      const payment = await prisma.payment.findUnique({
+        where: { orderId: order_id },
+        include: { user: true, product: true, shipments: true },
+      });
+
+      if (!payment) {
+        console.error("Payment not found for order_id:", order_id);
+        return res.status(404).json({ error: "Payment not found" });
+      }
+
+      // Get detailed status from Midtrans API
+      const auth = Buffer.from(MIDTRANS_SERVER_KEY + ":").toString("base64");
+      const response = await axios.get(
+        `${MIDTRANS_BASE_URL}/${order_id}/status`,
+        {
+          headers: {
+            Authorization: `Basic ${auth}`,
+          },
+        }
+      );
+
+      const result = response.data;
+
+      // Update payment status
+      let paymentUpdate = {
+        status: mapMidtransStatusToPrisma(result.transaction_status),
+        transactionStatus: result.transaction_status,
+        fraudStatus: result.fraud_status || null,
+        midtransResponse: JSON.stringify(result),
+      };
+
+      if (
+        result.va_numbers &&
+        Array.isArray(result.va_numbers) &&
+        result.va_numbers.length > 0
+      ) {
+        paymentUpdate.vaNumber = result.va_numbers[0].va_number;
+        paymentUpdate.bankType = result.va_numbers[0].bank;
+      }
+
+      if (result.permata_va_number) {
+        paymentUpdate.vaNumber = result.permata_va_number;
+        paymentUpdate.bankType = "permata";
+      }
+
+      if (result.payment_code) paymentUpdate.paymentCode = result.payment_code;
+      if (result.expiry_time)
+        paymentUpdate.expiryTime = new Date(result.expiry_time);
+      if (result.paid_at) paymentUpdate.paidAt = new Date(result.paid_at);
+
+      // QRIS/GoPay
+      if (result.actions && Array.isArray(result.actions)) {
+        const qrAction = result.actions.find(
+          (a) => a.name === "generate-qr-code"
+        );
+        if (qrAction && qrAction.url)
+          paymentUpdate.snapRedirectUrl = qrAction.url;
+      }
+
+      // If payment is successful, send notification
+      if (
+        mapMidtransStatusToPrisma(result.transaction_status) === "SUCCESS" &&
+        payment.userId
+      ) {
+        // Log payment success
+        console.log(
+          `Payment success for order ${payment.orderId}, user ${payment.userId}, amount: ${payment.amount}`
+        );
+
+        // Kirim email ke admin
+        try {
+          const { sendAdminPaymentSuccessEmail } = require("../utils/email");
+          await sendAdminPaymentSuccessEmail({
+            to: "afrizaahmad18@gmail.com",
+            type: "product",
+            username: payment.user?.username || "User",
+            email: payment.user?.email || "No email",
+            amount: payment.amount,
+            orderId: payment.orderId,
+          });
+        } catch (err) {
+          console.error("Gagal mengirim email ke admin:", err);
+        }
+      }
+
+      const updatedPayment = await prisma.payment.update({
+        where: { orderId: order_id },
+        data: paymentUpdate,
+        include: { user: true, product: true, shipments: true },
+      });
+
+      console.log(
+        `Payment status updated for order ${order_id}: ${result.transaction_status}`
+      );
+
+      res.json({ success: true, message: "Callback processed successfully" });
+    } catch (error) {
+      console.error("Midtrans callback error:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   }
