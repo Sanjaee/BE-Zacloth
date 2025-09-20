@@ -8,7 +8,7 @@ class RajaOngkirController {
   constructor() {
     this.baseURL = "https://rajaongkir.komerce.id/api/v1";
     this.apiKey =
-      process.env.RAJAONGKIR_API_KEY || "Nks9tGh09e65885010d22f45HuNTKdlv";
+      process.env.RAJAONGKIR_API_KEY || "f45c51babc67486d773514b6d4ba92f2";
 
     if (!this.apiKey) {
       console.warn("RAJAONGKIR_API_KEY not found in environment variables");
@@ -276,16 +276,16 @@ class RajaOngkirController {
         });
       }
 
-      // Check if user already has 2 addresses (maximum limit)
+      // Check if user already has 1 address (maximum limit)
       const existingAddressesCount = await prisma.userAddress.count({
         where: { userId },
       });
 
-      if (existingAddressesCount >= 2) {
+      if (existingAddressesCount >= 1) {
         return res.status(400).json({
           success: false,
           message:
-            "Maximum of 2 addresses allowed. Please delete an existing address first.",
+            "Maximum of 1 address allowed. Please update your existing address instead.",
         });
       }
 
