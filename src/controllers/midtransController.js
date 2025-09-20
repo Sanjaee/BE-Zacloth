@@ -203,6 +203,15 @@ class MidtransController {
         },
       });
 
+      // Extract VA number and bank type from Midtrans response
+      let vaNumber = null;
+      let bankType = null;
+
+      if (result.va_numbers && result.va_numbers.length > 0) {
+        vaNumber = result.va_numbers[0].va_number;
+        bankType = result.va_numbers[0].bank;
+      }
+
       // Update payment with Midtrans response
       await prisma.payment.update({
         where: { orderId },
@@ -212,6 +221,9 @@ class MidtransController {
           fraudStatus: result.fraud_status || null,
           midtransResponse: JSON.stringify(result),
           midtransAction: JSON.stringify(result.actions),
+          vaNumber: vaNumber,
+          bankType: bankType,
+          expiryTime: result.expiry_time ? new Date(result.expiry_time) : null,
         },
       });
 
@@ -226,6 +238,9 @@ class MidtransController {
           midtransResponse: result,
           status: result.transaction_status,
           shipment: shipment,
+          vaNumber: vaNumber,
+          bankType: bankType,
+          expiryTime: result.expiry_time,
         },
       });
     } catch (error) {
