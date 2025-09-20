@@ -783,7 +783,7 @@ class PlisioController {
   // Get pending payment by user
   static async getPendingPaymentByUser(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user.id; // Use req.user.id instead of req.user.userId
       const pendingPayment = await prisma.payment.findFirst({
         where: {
           userId,
@@ -796,6 +796,9 @@ class PlisioController {
           orderId: true,
           userId: true,
           amount: true,
+          adminFee: true,
+          totalAmount: true,
+          paymentMethod: true,
           snapRedirectUrl: true,
           midtransResponse: true,
           createdAt: true,
@@ -806,6 +809,7 @@ class PlisioController {
               name: true,
               imageUrl: true,
               currentPrice: true,
+              fullPrice: true,
             },
           },
         },
@@ -823,7 +827,7 @@ class PlisioController {
   // Cancel payment
   static async cancelPayment(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user.id; // Use req.user.id instead of req.user.userId
       const { orderId } = req.params;
       const payment = await prisma.payment.findFirst({
         where: {
@@ -835,7 +839,7 @@ class PlisioController {
       });
 
       if (!payment) {
-        return res.status(404).json({
+        return res.status(400).json({
           success: false,
           error: "Payment not found or not cancellable",
         });
