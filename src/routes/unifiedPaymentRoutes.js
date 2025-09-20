@@ -3,6 +3,20 @@ const router = express.Router();
 const UnifiedPaymentController = require("../controllers/unifiedPaymentController");
 const { authenticateToken } = require("../middleware/auth");
 
+// Create payment (unified for both Midtrans and Plisio)
+router.post(
+  "/create-product-payment",
+  authenticateToken,
+  UnifiedPaymentController.createProductPayment
+);
+
+// Get payment status by orderId (unified for both Midtrans and Plisio)
+router.get(
+  "/status/:orderId",
+  authenticateToken,
+  UnifiedPaymentController.getPaymentStatus
+);
+
 // Get pending payment by user (unified for both Midtrans and Plisio)
 router.get(
   "/pending",

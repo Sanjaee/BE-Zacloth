@@ -18,40 +18,5 @@ router.post(
   authenticateToken,
   PlisioController.createProductPayment
 );
-router.get(
-  "/payment-status/:orderId",
-  authenticateToken,
-  PlisioController.getPaymentStatus
-);
-router.post(
-  "/check-payment-status",
-  authenticateToken,
-  PlisioController.checkPaymentStatus
-);
-router.post(
-  "/crypto-callback",
-  authenticateToken,
-  PlisioController.handleCryptoCallback
-);
-router.post(
-  "/auto-success",
-  authenticateToken,
-  PlisioController.handleAutoSuccess
-);
-router.get(
-  "/user-payments/:userId",
-  authenticateToken,
-  PlisioController.getUserPayments
-);
-router.get(
-  "/pending-payment",
-  authenticateToken,
-  PlisioController.getPendingPaymentByUser
-);
-router.post(
-  "/cancel-payment/:orderId",
-  authenticateToken,
-  PlisioController.cancelPayment
-);
 
 module.exports = router;

@@ -128,10 +128,6 @@ app.use("/visitors", visitorRoutes);
 const rajaOngkirRoutes = require("./src/routes/rajaOngkirRoutes");
 app.use("/rajaongkir", rajaOngkirRoutes);
 
-// Use Payment routes
-const paymentRoutes = require("./src/routes/paymentRoutes");
-app.use("/payments", paymentRoutes);
-
 // Use Plisio routes
 const plisioRoutes = require("./src/routes/plisioRoutes");
 app.use("/api/plisio", plisioRoutes);
