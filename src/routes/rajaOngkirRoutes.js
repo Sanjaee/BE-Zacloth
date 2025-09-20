@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const rajaOngkirController = require("../controllers/rajaOngkirController");
-const { authenticateToken } = require("../middleware/auth");
+const { authenticateToken, requireAdmin } = require("../middleware/auth");
 
 // Protected routes (authentication required) - All RajaOngkir endpoints now require JWT
 router.get(
@@ -60,6 +60,20 @@ router.delete(
   "/addresses/:id",
   authenticateToken,
   rajaOngkirController.deleteUserAddress.bind(rajaOngkirController)
+);
+
+// Cache management routes (admin only)
+router.delete(
+  "/cache/clear",
+  authenticateToken,
+  requireAdmin,
+  rajaOngkirController.clearRajaOngkirCache.bind(rajaOngkirController)
+);
+router.get(
+  "/cache/stats",
+  authenticateToken,
+  requireAdmin,
+  rajaOngkirController.getRajaOngkirCacheStats.bind(rajaOngkirController)
 );
 
 module.exports = router;
