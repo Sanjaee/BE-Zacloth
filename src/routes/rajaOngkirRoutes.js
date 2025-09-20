@@ -3,28 +3,33 @@ const router = express.Router();
 const rajaOngkirController = require("../controllers/rajaOngkirController");
 const { authenticateToken } = require("../middleware/auth");
 
-// Public routes (no authentication required)
+// Protected routes (authentication required) - All RajaOngkir endpoints now require JWT
 router.get(
   "/provinces",
+  authenticateToken,
   rajaOngkirController.getProvinces.bind(rajaOngkirController)
 );
 router.get(
   "/cities",
+  authenticateToken,
   rajaOngkirController.getCities.bind(rajaOngkirController)
 );
 // Support path param: /cities/:province
 router.get(
   "/cities/:province",
+  authenticateToken,
   rajaOngkirController.getCities.bind(rajaOngkirController)
 );
 router.get(
   "/couriers",
+  authenticateToken,
   rajaOngkirController.getCouriers.bind(rajaOngkirController)
 );
 
 // Districts by city
 router.get(
   "/districts/:cityId",
+  authenticateToken,
   rajaOngkirController.getDistricts.bind(rajaOngkirController)
 );
 
@@ -32,12 +37,6 @@ router.get(
 router.post(
   "/cost",
   authenticateToken,
-  rajaOngkirController.getCost.bind(rajaOngkirController)
-);
-
-// Public route for guest users (temporary solution)
-router.post(
-  "/cost-guest",
   rajaOngkirController.getCost.bind(rajaOngkirController)
 );
 

@@ -127,18 +127,22 @@ const authController = {
       }
 
       // Generate JWT token
+      const tokenPayload = {
+        id: user.id, // Use 'id' to match credential login format
+        email: user.email,
+        username: user.username,
+      };
+
+      const tokenOptions = {
+        expiresIn: "7d",
+        issuer: "zacloth-api",
+        audience: "zacloth-client",
+      };
+
       const token = jwt.sign(
-        {
-          id: user.id, // Use 'id' to match credential login format
-          email: user.email,
-          username: user.username,
-        },
+        tokenPayload,
         process.env.JWT_SECRET || "your-secret-key",
-        {
-          expiresIn: "7d",
-          issuer: "zacloth-api",
-          audience: "zacloth-client",
-        }
+        tokenOptions
       );
 
       const responseData = {
@@ -167,21 +171,27 @@ const authController = {
         return res.status(401).json({ error: "Not authenticated" });
       }
 
+      const tokenPayload = {
+        id: req.user.id, // Use 'id' to match credential login format
+        email: req.user.email,
+        username: req.user.username,
+      };
+
+      const tokenOptions = {
+        expiresIn: "15m",
+        issuer: "zacloth-api",
+        audience: "zacloth-client",
+      };
+
       const token = jwt.sign(
-        {
-          id: req.user.id, // Use 'id' to match credential login format
-          email: req.user.email,
-          username: req.user.username,
-        },
+        tokenPayload,
         process.env.JWT_SECRET || "your-secret-key",
-        {
-          expiresIn: "7d",
-          issuer: "zacloth-api",
-          audience: "zacloth-client",
-        }
+        tokenOptions
       );
 
-      res.json({ token, user: req.user });
+      const response = { token, user: req.user };
+
+      res.json(response);
     } catch (error) {
       console.error("Error generating token:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -210,6 +220,7 @@ const authController = {
 
         // Handle both 'id' and 'userId' fields for backward compatibility
         const userId = decoded.id || decoded.userId;
+
         const user = await prisma.user.findUnique({
           where: { id: userId },
           select: {
@@ -233,9 +244,11 @@ const authController = {
         // If JWT verification fails, try parsing as user object (fallback)
         try {
           const userData = JSON.parse(token);
+
           if (userData.userId || userData.id) {
             // Handle both 'id' and 'userId' fields for backward compatibility
             const userId = userData.id || userData.userId;
+
             const user = await prisma.user.findUnique({
               where: { id: userId },
               select: {
@@ -253,13 +266,13 @@ const authController = {
             }
           }
         } catch (parseError) {
+          return res.status(401).json({ error: "Invalid token", valid: false });
           // Both JWT and JSON parsing failed
         }
       }
 
       res.status(401).json({ error: "Invalid token", valid: false });
     } catch (error) {
-      console.error("Error verifying token:", error);
       res.status(401).json({ error: "Invalid token", valid: false });
     }
   },
@@ -283,7 +296,7 @@ const authController = {
         },
         process.env.JWT_SECRET || "your-secret-key",
         {
-          expiresIn: "7d",
+          expiresIn: "15m",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }
@@ -352,7 +365,7 @@ const authController = {
           },
           process.env.JWT_SECRET || "your-secret-key",
           {
-            expiresIn: "7d",
+            expiresIn: "15m",
             issuer: "zacloth-api",
             audience: "zacloth-client",
           }
@@ -426,7 +439,7 @@ const authController = {
           },
           process.env.JWT_SECRET || "your-secret-key",
           {
-            expiresIn: "7d",
+            expiresIn: "15m",
             issuer: "zacloth-api",
             audience: "zacloth-client",
           }
@@ -492,7 +505,7 @@ const authController = {
         },
         process.env.JWT_SECRET || "your-secret-key",
         {
-          expiresIn: "7d",
+          expiresIn: "15m",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }
