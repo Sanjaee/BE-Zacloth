@@ -1,7 +1,35 @@
 const { PrismaClient } = require("@prisma/client");
 const { generateSlug, generateUniqueSlug } = require("../utils/slugGenerator");
+const redisConfig = require("../config/redisConfig");
 
 const prisma = new PrismaClient();
+
+// Helper function to invalidate product-related caches
+const invalidateProductCaches = async (productId = null) => {
+  if (!redisConfig.isRedisConnected()) {
+    return;
+  }
+
+  try {
+    const patterns = [
+      'products:list:*',
+      'product:detail:*'
+    ];
+
+    if (productId) {
+      patterns.push(`product:detail:${productId}`);
+      patterns.push(`product:checkout:${productId}`);
+    }
+
+    for (const pattern of patterns) {
+      await redisConfig.invalidatePattern(pattern);
+    }
+    
+    console.log('Product caches invalidated successfully');
+  } catch (error) {
+    console.error('Error invalidating product caches:', error);
+  }
+};
 
 // Test endpoint to check if database is working
 const testDatabase = async (req, res) => {
@@ -30,6 +58,28 @@ const getAllProducts = async (req, res) => {
     const gender = req.query.gender || "";
     const sortBy = req.query.sortBy || "name";
     const sortOrder = req.query.sortOrder || "asc";
+
+    // Generate cache key based on query parameters
+    const cacheKey = `products:list:${JSON.stringify({
+      page,
+      limit,
+      search,
+      category,
+      gender,
+      sortBy,
+      sortOrder
+    })}`;
+
+    // Try to get cached data first
+    if (redisConfig.isRedisConnected()) {
+      const cachedData = await redisConfig.get(cacheKey);
+      if (cachedData) {
+        console.log(`Cache HIT for products list: ${cacheKey}`);
+        return res.json(cachedData);
+      }
+    }
+
+    console.log(`Cache MISS for products list: ${cacheKey}`);
 
     // Calculate offset
     const offset = (page - 1) * limit;
@@ -101,7 +151,7 @@ const getAllProducts = async (req, res) => {
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
-    res.json({
+    const responseData = {
       products,
       pagination: {
         currentPage: page,
@@ -111,7 +161,14 @@ const getAllProducts = async (req, res) => {
         hasNextPage,
         hasPrevPage,
       },
-    });
+    };
+
+    // Cache the response for 15 minutes (900 seconds)
+    if (redisConfig.isRedisConnected()) {
+      await redisConfig.set(cacheKey, responseData, 900);
+    }
+
+    res.json(responseData);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Gagal mengambil produk" });
@@ -248,6 +305,9 @@ const createProduct = async (req, res) => {
       },
     });
 
+    // Invalidate product caches after successful creation
+    await invalidateProductCaches();
+
     res.status(201).json({
       message: "Produk berhasil ditambahkan",
       product: {
@@ -276,6 +336,20 @@ const getProductById = async (req, res) => {
         message: "Product ID is required",
       });
     }
+
+    // Generate cache key
+    const cacheKey = `product:detail:${id}`;
+
+    // Try to get cached data first
+    if (redisConfig.isRedisConnected()) {
+      const cachedData = await redisConfig.get(cacheKey);
+      if (cachedData) {
+        console.log(`Cache HIT for product: ${cacheKey}`);
+        return res.json(cachedData);
+      }
+    }
+
+    console.log(`Cache MISS for product: ${cacheKey}`);
 
     // Check if the parameter is a slug (contains hyphens and no special characters) or ID
     const isSlug = /^[a-z0-9-]+$/.test(id) && id.includes("-");
@@ -324,10 +398,17 @@ const getProductById = async (req, res) => {
       })),
     };
 
-    res.json({
+    const responseData = {
       success: true,
       data: transformedProduct,
-    });
+    };
+
+    // Cache the response for 30 minutes (1800 seconds)
+    if (redisConfig.isRedisConnected()) {
+      await redisConfig.set(cacheKey, responseData, 1800);
+    }
+
+    res.json(responseData);
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -553,6 +634,9 @@ const createProductWithImage = async (req, res) => {
       },
     });
 
+    // Invalidate product caches after successful creation
+    await invalidateProductCaches();
+
     res.status(201).json({
       message: "Produk berhasil ditambahkan",
       product: {
@@ -764,6 +848,9 @@ const updateProduct = async (req, res) => {
         },
       },
     });
+
+    // Invalidate product caches after successful update
+    await invalidateProductCaches(id);
 
     res.json({
       message: "Produk berhasil diupdate",
@@ -1048,6 +1135,9 @@ const updateProductWithImage = async (req, res) => {
       },
     });
 
+    // Invalidate product caches after successful update
+    await invalidateProductCaches(id);
+
     res.json({
       message: "Produk berhasil diupdate",
       product: {
@@ -1110,6 +1200,9 @@ const deleteProduct = async (req, res) => {
     await prisma.product.delete({
       where: { id },
     });
+
+    // Invalidate product caches after successful deletion
+    await invalidateProductCaches(id);
 
     res.json({
       message: "Produk berhasil dihapus",

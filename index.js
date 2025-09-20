@@ -18,6 +18,10 @@ const {
 // Import passport configuration
 require("./src/config/passportConfig");
 require("dotenv").config();
+
+// Import Redis initialization
+const { initializeRedis, closeRedis } = require("./src/config/redisInit");
+
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -136,6 +140,41 @@ app.use("/api/plisio", plisioRoutes);
 const unifiedPaymentRoutes = require("./src/routes/unifiedPaymentRoutes");
 app.use("/api/unified-payments", unifiedPaymentRoutes);
 
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+// Use Redis routes
+const redisRoutes = require("./src/routes/redisRoutes");
+app.use("/api/redis", redisRoutes);
+
+// Initialize Redis and start server
+const startServer = async () => {
+  try {
+    // Initialize Redis connection
+    await initializeRedis();
+
+    // Start the server
+    app.listen(port, () => {
+      console.log(`Server running on http://localhost:${port}`);
+      console.log(
+        `Redis caching is ${process.env.REDIS_HOST ? "enabled" : "disabled"}`
+      );
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+};
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  console.log("\nReceived SIGINT. Gracefully shutting down...");
+  await closeRedis();
+  process.exit(0);
 });
+
+process.on("SIGTERM", async () => {
+  console.log("\nReceived SIGTERM. Gracefully shutting down...");
+  await closeRedis();
+  process.exit(0);
+});
+
+// Start the server
+startServer();
