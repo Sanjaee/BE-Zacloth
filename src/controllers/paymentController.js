@@ -256,7 +256,7 @@ class MidtransController {
   // Mendapatkan payment pending milik user
   static async getPendingPaymentByUser(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user.id;
       const pendingPayment = await prisma.payment.findFirst({
         where: {
           userId,
@@ -295,22 +295,69 @@ class MidtransController {
 
   static async cancelPayment(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user.id;
       const { orderId } = req.params;
+      // Find the pending payment for this user and order
       const payment = await prisma.payment.findFirst({
-        where: { orderId, userId, status: "PENDING" },
+        where: {
+          orderId,
+          userId,
+          status: "PENDING",
+        },
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
+
       if (!payment) {
-        return res.status(404).json({
+        return res.status(400).json({
           success: false,
-          error: "Payment not found or not cancellable",
+          error: "No pending payment found for this order",
         });
       }
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: { status: "CANCELLED" },
-      });
-      return res.json({ success: true, message: "Payment cancelled" });
+
+      // Handle different payment types
+      if (payment.paymentType === "plisio") {
+        // For Plisio payments, just update status to CANCELLED
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: "CANCELLED" },
+        });
+
+        return res.json({
+          success: true,
+          message: "Plisio payment cancelled successfully",
+          action: "cancelled",
+        });
+      } else if (payment.paymentType === "midtrans") {
+        // For Midtrans payments, delete the payment record entirely
+        await prisma.payment.delete({
+          where: { id: payment.id },
+        });
+
+        return res.json({
+          success: true,
+          message: "Midtrans payment removed successfully",
+          action: "deleted",
+        });
+      } else {
+        // For unknown payment types, just update status
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: "CANCELLED" },
+        });
+
+        return res.json({
+          success: true,
+          message: "Payment cancelled successfully",
+          action: "cancelled",
+        });
+      }
     } catch (err) {
       return res.status(500).json({ success: false, error: "Server error" });
     }
@@ -371,26 +418,23 @@ class MidtransController {
 
       if (!user) {
         return res
-          .status(404)
+          .status(401)
           .json({ success: false, message: "User not found" });
       }
       if (!product) {
         return res
-          .status(404)
+          .status(400)
           .json({ success: false, message: "Product not found" });
       }
       if (!address) {
         return res
-          .status(404)
+          .status(400)
           .json({ success: false, message: "Address not found" });
       }
 
-      const orderId = `PROD_${Date.now()}_${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
+      const orderId = `Order_${Date.now()}`;
 
-      let paymentType = paymentMethod;
-      if (paymentMethod === "gopay") paymentType = "qris";
+      let paymentType = "midtrans"; // Default to midtrans for all non-crypto payments
       if (paymentMethod === "crypto") paymentType = "plisio";
 
       // Handle crypto payment with Plisio
@@ -570,7 +614,6 @@ class MidtransController {
         );
         result = response.data;
       } catch (err) {
-        console.error("Midtrans error:", err?.response?.data || err.message);
         return res.status(400).json({
           success: false,
           error:
