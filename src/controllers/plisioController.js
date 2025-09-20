@@ -232,17 +232,17 @@ class PlisioController {
 
       if (!user) {
         return res
-          .status(404)
+          .status(400)
           .json({ success: false, message: "User not found" });
       }
       if (!product) {
         return res
-          .status(404)
+          .status(400)
           .json({ success: false, message: "Product not found" });
       }
       if (!address) {
         return res
-          .status(404)
+          .status(400)
           .json({ success: false, message: "Address not found" });
       }
 

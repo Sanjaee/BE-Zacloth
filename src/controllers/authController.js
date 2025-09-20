@@ -24,7 +24,7 @@ const authController = {
       });
 
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(400).json({ error: "User not found" });
       }
 
       res.json({ user });
@@ -53,7 +53,7 @@ const authController = {
       });
 
       if (!user) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(400).json({ error: "User not found" });
       }
 
       res.json({ user });
@@ -123,7 +123,7 @@ const authController = {
       });
 
       if (!user || user.email !== email) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(400).json({ error: "User not found" });
       }
 
       // Generate JWT token
@@ -235,7 +235,7 @@ const authController = {
 
         if (!user) {
           return res
-            .status(404)
+            .status(400)
             .json({ error: "User not found", valid: false });
         }
 

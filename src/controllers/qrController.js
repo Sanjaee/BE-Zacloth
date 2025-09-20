@@ -21,7 +21,7 @@ const generateProfileQR = async (req, res) => {
     });
 
     if (!profile) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: "Profile not found",
       });
@@ -83,7 +83,7 @@ const generateProfileQRSimple = async (req, res) => {
     });
 
     if (!profile) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: "Profile not found",
       });
@@ -141,7 +141,7 @@ const getProfileByQR = async (req, res) => {
     });
 
     if (!profile) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: "Profile not found",
       });

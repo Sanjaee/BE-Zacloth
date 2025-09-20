@@ -238,7 +238,7 @@ const updateProfile = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: "User not found",
       });
@@ -314,7 +314,7 @@ const getProfile = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: "User not found",
       });
@@ -500,7 +500,7 @@ const updateUserAddress = async (req, res) => {
     });
 
     if (!existingAddress) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: "Address not found",
       });
@@ -559,7 +559,7 @@ const deleteUserAddress = async (req, res) => {
     });
 
     if (!existingAddress) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: "Address not found",
       });

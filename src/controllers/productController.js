@@ -305,7 +305,7 @@ const getProductById = async (req, res) => {
     });
 
     if (!product) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: "Product not found",
       });
@@ -384,7 +384,7 @@ const getProductForCheckout = async (req, res) => {
     });
 
     if (!product) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
         message: "Product not found",
       });
@@ -655,7 +655,7 @@ const updateProduct = async (req, res) => {
     });
 
     if (!existingProduct) {
-      return res.status(404).json({
+      return res.status(400).json({
         message: "Produk tidak ditemukan",
       });
     }
@@ -871,7 +871,7 @@ const updateProductWithImage = async (req, res) => {
     });
 
     if (!existingProduct) {
-      return res.status(404).json({
+      return res.status(400).json({
         message: "Produk tidak ditemukan",
       });
     }
@@ -1099,7 +1099,7 @@ const deleteProduct = async (req, res) => {
     });
 
     if (!existingProduct) {
-      return res.status(404).json({
+      return res.status(400).json({
         message: "Produk tidak ditemukan",
       });
     }

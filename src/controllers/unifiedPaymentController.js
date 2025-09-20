@@ -152,7 +152,7 @@ class UnifiedPaymentController {
       });
 
       if (!payment) {
-        return res.status(404).json({
+        return res.status(400).json({
           success: false,
           message: "Payment not found",
         });

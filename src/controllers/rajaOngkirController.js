@@ -124,11 +124,26 @@ class RajaOngkirController {
         "Error fetching shipping cost:",
         error.response?.data || error.message
       );
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch shipping cost",
-        error: error.response?.data || error.message,
-      });
+
+      // Check if it's a specific RajaOngkir API error
+      const errorData = error.response?.data;
+      if (errorData?.meta?.code === 404) {
+        res.status(400).json({
+          success: false,
+          message: "Shipping service not available for this route",
+          error: "SHIPPING_SERVICE_UNAVAILABLE",
+          details:
+            errorData?.meta?.message ||
+            "The selected courier service is not available for this destination",
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: "Failed to calculate shipping cost",
+          error: "SHIPPING_CALCULATION_FAILED",
+          details: error.response?.data || error.message,
+        });
+      }
     }
   }
 
@@ -370,7 +385,7 @@ class RajaOngkirController {
       });
 
       if (!existingAddress) {
-        return res.status(404).json({
+        return res.status(400).json({
           success: false,
           message: "Address not found",
         });
@@ -429,7 +444,7 @@ class RajaOngkirController {
       });
 
       if (!existingAddress) {
-        return res.status(404).json({
+        return res.status(400).json({
           success: false,
           message: "Address not found",
         });
