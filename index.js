@@ -136,6 +136,10 @@ app.use("/payments", paymentRoutes);
 const plisioRoutes = require("./src/routes/plisioRoutes");
 app.use("/api/plisio", plisioRoutes);
 
+// Use Unified Payment routes
+const unifiedPaymentRoutes = require("./src/routes/unifiedPaymentRoutes");
+app.use("/api/unified-payments", unifiedPaymentRoutes);
+
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
