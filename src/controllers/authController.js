@@ -141,7 +141,7 @@ const authController = {
 
       const token = jwt.sign(
         tokenPayload,
-        process.env.JWT_SECRET || "your-secret-key",
+        process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
         tokenOptions
       );
 
@@ -185,7 +185,7 @@ const authController = {
 
       const token = jwt.sign(
         tokenPayload,
-        process.env.JWT_SECRET || "your-secret-key",
+        process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
         tokenOptions
       );
 
@@ -211,7 +211,7 @@ const authController = {
       try {
         const decoded = jwt.verify(
           token,
-          process.env.JWT_SECRET || "your-secret-key",
+          process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
           {
             issuer: "zacloth-api",
             audience: "zacloth-client",
@@ -294,7 +294,7 @@ const authController = {
           username: user.username,
           role: user.role,
         },
-        process.env.JWT_SECRET || "your-secret-key",
+        process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
         {
           expiresIn: "15m",
           issuer: "zacloth-api",
@@ -363,7 +363,7 @@ const authController = {
             username: user.username,
             role: user.role,
           },
-          process.env.JWT_SECRET || "your-secret-key",
+          process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
           {
             expiresIn: "15m",
             issuer: "zacloth-api",
@@ -437,7 +437,7 @@ const authController = {
             username: updatedUser.username,
             role: updatedUser.role,
           },
-          process.env.JWT_SECRET || "your-secret-key",
+          process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
           {
             expiresIn: "15m",
             issuer: "zacloth-api",
@@ -503,7 +503,7 @@ const authController = {
           username: newUser.username,
           role: newUser.role,
         },
-        process.env.JWT_SECRET || "your-secret-key",
+        process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
         {
           expiresIn: "15m",
           issuer: "zacloth-api",
