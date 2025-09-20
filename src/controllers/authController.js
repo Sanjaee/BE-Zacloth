@@ -178,7 +178,7 @@ const authController = {
       };
 
       const tokenOptions = {
-        expiresIn: "15m",
+        expiresIn: "7d",
         issuer: "zacloth-api",
         audience: "zacloth-client",
       };
@@ -296,7 +296,7 @@ const authController = {
         },
         process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
         {
-          expiresIn: "15m",
+          expiresIn: "7d",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }
@@ -310,7 +310,7 @@ const authController = {
         },
         process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key",
         {
-          expiresIn: "30d",
+          expiresIn: "7d",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }
@@ -365,7 +365,7 @@ const authController = {
           },
           process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
           {
-            expiresIn: "15m",
+            expiresIn: "7d",
             issuer: "zacloth-api",
             audience: "zacloth-client",
           }
@@ -378,7 +378,7 @@ const authController = {
           },
           process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key",
           {
-            expiresIn: "30d",
+            expiresIn: "7d",
             issuer: "zacloth-api",
             audience: "zacloth-client",
           }
@@ -439,7 +439,7 @@ const authController = {
           },
           process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
           {
-            expiresIn: "15m",
+            expiresIn: "7d",
             issuer: "zacloth-api",
             audience: "zacloth-client",
           }
@@ -452,7 +452,7 @@ const authController = {
           },
           process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key",
           {
-            expiresIn: "30d",
+            expiresIn: "7d",
             issuer: "zacloth-api",
             audience: "zacloth-client",
           }
@@ -505,7 +505,7 @@ const authController = {
         },
         process.env.JWT_SECRET || "D8D3DA7A75F61ACD5A4CD579EDBBC",
         {
-          expiresIn: "15m",
+          expiresIn: "7d",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }
@@ -518,7 +518,7 @@ const authController = {
         },
         process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key",
         {
-          expiresIn: "30d",
+          expiresIn: "7d",
           issuer: "zacloth-api",
           audience: "zacloth-client",
         }
