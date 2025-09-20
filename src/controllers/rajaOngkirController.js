@@ -8,7 +8,7 @@ class RajaOngkirController {
   constructor() {
     this.baseURL = "https://rajaongkir.komerce.id/api/v1";
     this.apiKey =
-      process.env.RAJAONGKIR_API_KEY || "S22uXwSr53c4e8701e04109bTXubL4zi";
+      process.env.RAJAONGKIR_API_KEY || "Nks9tGh09e65885010d22f45HuNTKdlv";
 
     if (!this.apiKey) {
       console.warn("RAJAONGKIR_API_KEY not found in environment variables");
