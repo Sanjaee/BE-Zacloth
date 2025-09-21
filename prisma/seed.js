@@ -39,8 +39,35 @@ async function main() {
   console.log(`   Role: admin`);
   console.log(`   Profile ID: ${adminProfile.id}`);
 
+  // Create staff user
+  console.log("👤 Creating staff user...");
+  const staffPassword = await bcrypt.hash("staff123", 12);
+
+  const staffUser = await prisma.user.create({
+    data: {
+      username: "staff",
+      password: staffPassword,
+      role: "staff",
+    },
+  });
+
+  // Create staff profile
+  const staffProfile = await prisma.profile.create({
+    data: {
+      fullName: "Staff Member",
+      bio: "Store Staff Member",
+      userId: staffUser.id,
+    },
+  });
+
+  console.log("✅ Staff user created:");
+  console.log(`   Username: staff`);
+  console.log(`   Password: staff123`);
+  console.log(`   Role: staff`);
+  console.log(`   Profile ID: ${staffProfile.id}`);
+
   console.log("🎉 Seed completed successfully!");
-  console.log("👤 Admin user ready to use");
+  console.log("👤 Admin and Staff users ready to use");
 }
 
 main()
