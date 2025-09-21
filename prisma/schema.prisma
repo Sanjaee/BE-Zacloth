@@ -28,6 +28,9 @@ model User {
 
   // Relasi ke UserAddress (1-N)
   addresses UserAddress[]
+
+  // Relasi ke Shipped (1-N)
+  shipped   Shipped[]
 }
 
 model Profile {
@@ -81,6 +84,9 @@ model Product {
 
   // Relasi ke Payment (1-N)
   payments       Payment[]
+
+  // Relasi ke Shipped (1-N)
+  shipped        Shipped[]
 }
 
 model SkuData {
@@ -204,6 +210,35 @@ model Payment {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product  Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   shipments Shipment[]
+  shipped  Shipped?
+}
+
+model Shipped {
+  id                String        @id @default(uuid())
+  orderId           String        @unique
+  paymentId         String        @unique
+  userId            String
+  productId         String?
+  trackingNumber    String?       // Nomor resi pengiriman
+  courier           String?       // JNE, TIKI, POS, dll
+  service           String?       // REG, YES, OKE, dll
+  status            ShippedStatus @default(SHIPPED)
+  shippedAt         DateTime?     // Tanggal barang dikirim
+  deliveredAt       DateTime?     // Tanggal barang diterima
+  estimatedDelivery DateTime?     // Estimasi waktu sampai
+  recipientName     String        // Nama penerima
+  recipientPhone    String        // Nomor HP penerima
+  deliveryAddress   String        // Alamat lengkap pengiriman
+  notes             String?       // Catatan pengiriman
+  returnReason      String?       // Alasan return (jika ada)
+  returnAt          DateTime?     // Tanggal return
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relasi
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product  Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  payment  Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 }
 
 enum PaymentStatus {
@@ -212,4 +247,11 @@ enum PaymentStatus {
   FAILED
   CANCELLED
   EXPIRED
+}
+
+enum ShippedStatus {
+  SHIPPED    // Dikirim
+  DELIVERED  // Diterima pembeli
+  CANCELLED  // Dibatalkan
+  RETURNED   // Barang dikembalikan
 }

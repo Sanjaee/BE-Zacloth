@@ -144,6 +144,10 @@ app.use("/api/unified-payments", unifiedPaymentRoutes);
 const redisRoutes = require("./src/routes/redisRoutes");
 app.use("/api/redis", redisRoutes);
 
+// Use Shipped routes
+const shippedRoutes = require("./src/routes/shippedRoutes");
+app.use("/api/shipped", shippedRoutes);
+
 // Initialize Redis and start server
 const startServer = async () => {
   try {

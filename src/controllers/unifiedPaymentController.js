@@ -211,7 +211,15 @@ class UnifiedPaymentController {
       if (result.payment_code) paymentUpdate.paymentCode = result.payment_code;
       if (result.expiry_time)
         paymentUpdate.expiryTime = new Date(result.expiry_time);
-      if (result.paid_at) paymentUpdate.paidAt = new Date(result.paid_at);
+      if (result.paid_at) {
+        paymentUpdate.paidAt = new Date(result.paid_at);
+      } else if (
+        mapMidtransStatusToPrisma(result.transaction_status) === "SUCCESS" &&
+        !payment.paidAt
+      ) {
+        // If payment is successful but no paid_at from Midtrans, set it to current time
+        paymentUpdate.paidAt = new Date();
+      }
       // QRIS/GoPay
       if (result.actions && Array.isArray(result.actions)) {
         const qrAction = result.actions.find(
@@ -220,7 +228,7 @@ class UnifiedPaymentController {
         if (qrAction && qrAction.url)
           paymentUpdate.snapRedirectUrl = qrAction.url;
       }
-      // If payment is successful, send notification
+      // If payment is successful, send notification and create shipped record
       if (
         mapMidtransStatusToPrisma(result.transaction_status) === "SUCCESS" &&
         payment.userId
@@ -229,6 +237,41 @@ class UnifiedPaymentController {
         console.log(
           `Payment success for order ${payment.orderId}, user ${payment.userId}, amount: ${payment.amount}`
         );
+
+        // Create shipped record if it doesn't exist
+        try {
+          const existingShipped = await prisma.shipped.findUnique({
+            where: { orderId: payment.orderId },
+          });
+
+          if (!existingShipped) {
+            // Get user address from payment data or use default
+            const userAddress = await prisma.userAddress.findFirst({
+              where: { userId: payment.userId, isPrimary: true },
+            });
+
+            if (userAddress) {
+              await prisma.shipped.create({
+                data: {
+                  orderId: payment.orderId,
+                  paymentId: payment.id,
+                  userId: payment.userId,
+                  productId: payment.productId,
+                  recipientName: userAddress.recipientName,
+                  recipientPhone: userAddress.phoneNumber,
+                  deliveryAddress: `${userAddress.addressDetail}, ${userAddress.cityName}, ${userAddress.provinceName} ${userAddress.postalCode}`,
+                  status: "SHIPPED",
+                  shippedAt: new Date(),
+                },
+              });
+              console.log(
+                `Created shipped record for order ${payment.orderId}`
+              );
+            }
+          }
+        } catch (shippedError) {
+          console.error("Error creating shipped record:", shippedError);
+        }
 
         // Kirim email ke admin
         try {
@@ -529,7 +572,15 @@ class UnifiedPaymentController {
       if (result.payment_code) paymentUpdate.paymentCode = result.payment_code;
       if (result.expiry_time)
         paymentUpdate.expiryTime = new Date(result.expiry_time);
-      if (result.paid_at) paymentUpdate.paidAt = new Date(result.paid_at);
+      if (result.paid_at) {
+        paymentUpdate.paidAt = new Date(result.paid_at);
+      } else if (
+        mapMidtransStatusToPrisma(result.transaction_status) === "SUCCESS" &&
+        !payment.paidAt
+      ) {
+        // If payment is successful but no paid_at from Midtrans, set it to current time
+        paymentUpdate.paidAt = new Date();
+      }
 
       // QRIS/GoPay
       if (result.actions && Array.isArray(result.actions)) {
@@ -540,7 +591,7 @@ class UnifiedPaymentController {
           paymentUpdate.snapRedirectUrl = qrAction.url;
       }
 
-      // If payment is successful, send notification
+      // If payment is successful, send notification and create shipped record
       if (
         mapMidtransStatusToPrisma(result.transaction_status) === "SUCCESS" &&
         payment.userId
@@ -549,6 +600,41 @@ class UnifiedPaymentController {
         console.log(
           `Payment success for order ${payment.orderId}, user ${payment.userId}, amount: ${payment.amount}`
         );
+
+        // Create shipped record if it doesn't exist
+        try {
+          const existingShipped = await prisma.shipped.findUnique({
+            where: { orderId: payment.orderId },
+          });
+
+          if (!existingShipped) {
+            // Get user address from payment data or use default
+            const userAddress = await prisma.userAddress.findFirst({
+              where: { userId: payment.userId, isPrimary: true },
+            });
+
+            if (userAddress) {
+              await prisma.shipped.create({
+                data: {
+                  orderId: payment.orderId,
+                  paymentId: payment.id,
+                  userId: payment.userId,
+                  productId: payment.productId,
+                  recipientName: userAddress.recipientName,
+                  recipientPhone: userAddress.phoneNumber,
+                  deliveryAddress: `${userAddress.addressDetail}, ${userAddress.cityName}, ${userAddress.provinceName} ${userAddress.postalCode}`,
+                  status: "SHIPPED",
+                  shippedAt: new Date(),
+                },
+              });
+              console.log(
+                `Created shipped record for order ${payment.orderId}`
+              );
+            }
+          }
+        } catch (shippedError) {
+          console.error("Error creating shipped record:", shippedError);
+        }
 
         // Kirim email ke admin
         try {
