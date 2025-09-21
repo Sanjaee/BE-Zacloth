@@ -49,6 +49,7 @@ class UnifiedPaymentController {
         paymentMethod = "bank_transfer",
         bank,
         currency, // For crypto payments
+        notes, // User notes/comments
       } = req.body;
 
       // Validation
@@ -121,6 +122,7 @@ class UnifiedPaymentController {
             adminFee,
             totalAmount,
             currency: currency || "BTC",
+            notes,
           },
         };
 
@@ -148,6 +150,7 @@ class UnifiedPaymentController {
           totalAmount,
           paymentMethod,
           bank,
+          notes,
         },
       };
 
@@ -260,6 +263,7 @@ class UnifiedPaymentController {
                   recipientName: userAddress.recipientName,
                   recipientPhone: userAddress.phoneNumber,
                   deliveryAddress: `${userAddress.addressDetail}, ${userAddress.cityName}, ${userAddress.provinceName} ${userAddress.postalCode}`,
+                  userNotes: payment.notes, // Include user notes from payment
                   status: "SHIPPED",
                   shippedAt: new Date(),
                 },
@@ -623,6 +627,7 @@ class UnifiedPaymentController {
                   recipientName: userAddress.recipientName,
                   recipientPhone: userAddress.phoneNumber,
                   deliveryAddress: `${userAddress.addressDetail}, ${userAddress.cityName}, ${userAddress.provinceName} ${userAddress.postalCode}`,
+                  userNotes: payment.notes, // Include user notes from payment
                   status: "SHIPPED",
                   shippedAt: new Date(),
                 },

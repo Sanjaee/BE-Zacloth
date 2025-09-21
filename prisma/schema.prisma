@@ -192,6 +192,7 @@ model Payment {
   paymentMethod         String        // credit_card, bank_transfer, gopay, etc
   paymentType           String?       // qris, bank_transfer, credit_card, etc
   status                PaymentStatus @default(PENDING)
+  notes                 String?       // User notes/comments for the order
   snapRedirectUrl       String?
   midtransTransactionId String?
   transactionStatus     String?
@@ -229,7 +230,8 @@ model Shipped {
   recipientName     String        // Nama penerima
   recipientPhone    String        // Nomor HP penerima
   deliveryAddress   String        // Alamat lengkap pengiriman
-  notes             String?       // Catatan pengiriman
+  userNotes         String?       // Catatan dari user saat checkout
+  shippingNotes     String?       // Catatan pengiriman dari admin
   returnReason      String?       // Alasan return (jika ada)
   returnAt          DateTime?     // Tanggal return
   createdAt         DateTime      @default(now())
