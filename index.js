@@ -148,6 +148,10 @@ app.use("/api/redis", redisRoutes);
 const shippedRoutes = require("./src/routes/shippedRoutes");
 app.use("/api/shipped", shippedRoutes);
 
+// Use Purchase routes
+const purchaseRoutes = require("./src/routes/purchaseRoutes");
+app.use("/api/purchases", purchaseRoutes);
+
 // Initialize Redis and start server
 const startServer = async () => {
   try {
