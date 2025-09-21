@@ -16,10 +16,15 @@ const authController = {
         where: { id: req.user.id },
         select: {
           id: true,
-          googleId: true,
           username: true,
           email: true,
-          createdAt: true,
+          role: true,
+          profile: {
+            select: {
+              fullName: true,
+              avatarUrl: true,
+            },
+          },
         },
       });
 
