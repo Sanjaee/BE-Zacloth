@@ -11,10 +11,7 @@ const invalidateProductCaches = async (productId = null) => {
   }
 
   try {
-    const patterns = [
-      'products:list:*',
-      'product:detail:*'
-    ];
+    const patterns = ["products:list:*", "product:detail:*"];
 
     if (productId) {
       patterns.push(`product:detail:${productId}`);
@@ -24,10 +21,10 @@ const invalidateProductCaches = async (productId = null) => {
     for (const pattern of patterns) {
       await redisConfig.invalidatePattern(pattern);
     }
-    
-    console.log('Product caches invalidated successfully');
+
+    console.log("Product caches invalidated successfully");
   } catch (error) {
-    console.error('Error invalidating product caches:', error);
+    console.error("Error invalidating product caches:", error);
   }
 };
 
@@ -67,7 +64,7 @@ const getAllProducts = async (req, res) => {
       category,
       gender,
       sortBy,
-      sortOrder
+      sortOrder,
     })}`;
 
     // Try to get cached data first
@@ -304,9 +301,6 @@ const createProduct = async (req, res) => {
         subCategories: true,
       },
     });
-
-    // Invalidate product caches after successful creation
-    await invalidateProductCaches();
 
     res.status(201).json({
       message: "Produk berhasil ditambahkan",
@@ -634,9 +628,6 @@ const createProductWithImage = async (req, res) => {
       },
     });
 
-    // Invalidate product caches after successful creation
-    await invalidateProductCaches();
-
     res.status(201).json({
       message: "Produk berhasil ditambahkan",
       product: {
@@ -848,9 +839,6 @@ const updateProduct = async (req, res) => {
         },
       },
     });
-
-    // Invalidate product caches after successful update
-    await invalidateProductCaches(id);
 
     res.json({
       message: "Produk berhasil diupdate",
@@ -1135,9 +1123,6 @@ const updateProductWithImage = async (req, res) => {
       },
     });
 
-    // Invalidate product caches after successful update
-    await invalidateProductCaches(id);
-
     res.json({
       message: "Produk berhasil diupdate",
       product: {
@@ -1200,9 +1185,6 @@ const deleteProduct = async (req, res) => {
     await prisma.product.delete({
       where: { id },
     });
-
-    // Invalidate product caches after successful deletion
-    await invalidateProductCaches(id);
 
     res.json({
       message: "Produk berhasil dihapus",

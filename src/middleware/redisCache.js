@@ -89,7 +89,7 @@ const generateDefaultCacheKey = (req) => {
 };
 
 // Cache invalidation middleware
-const invalidateCache = (patterns = []) => {
+const invalidateCache = (patternsOrFunction = []) => {
   return async (req, res, next) => {
     // Store original res.json method
     const originalJson = res.json;
@@ -98,6 +98,19 @@ const invalidateCache = (patterns = []) => {
     res.json = function (data) {
       // Only invalidate cache for successful responses
       if (res.statusCode >= 200 && res.statusCode < 300) {
+        // Handle both array of patterns and function that returns patterns
+        let patterns;
+        if (typeof patternsOrFunction === "function") {
+          patterns = patternsOrFunction(req);
+        } else {
+          patterns = patternsOrFunction;
+        }
+
+        // Ensure patterns is an array
+        if (!Array.isArray(patterns)) {
+          patterns = [patterns];
+        }
+
         invalidateCachePatterns(patterns, req).catch((error) => {
           console.error("Failed to invalidate cache:", error);
         });
@@ -194,6 +207,9 @@ const cacheStats = () => {
 const productCachePatterns = {
   // Invalidate all product-related caches
   invalidateAll: (req) => [
+    "products:list:*",
+    "product:detail:*",
+    "product:checkout:*",
     "cache:GET:/api/products*",
     "cache:GET:/api/products/*",
     "cache:GET:/api/products/checkout/*",
@@ -201,12 +217,17 @@ const productCachePatterns = {
 
   // Invalidate specific product cache
   invalidateProduct: (req) => [
+    `product:detail:${req.params.id}`,
+    `product:checkout:${req.params.id}`,
     `cache:GET:/api/products/${req.params.id}*`,
     `cache:GET:/api/products/checkout/${req.params.id}*`,
   ],
 
   // Invalidate product list caches
-  invalidateProductList: (req) => ["cache:GET:/api/products*"],
+  invalidateProductList: (req) => [
+    "products:list:*",
+    "cache:GET:/api/products*",
+  ],
 };
 
 // User-specific cache patterns
