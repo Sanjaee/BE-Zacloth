@@ -196,6 +196,7 @@ class PlisioController {
         adminFee,
         totalAmount,
         currency = "BTC", // For crypto payments
+        notes, // User notes/comments
       } = req.body;
 
       // Validation with specific error messages
@@ -266,6 +267,7 @@ class PlisioController {
           status: "PENDING",
           paymentMethod: "crypto",
           paymentType: "plisio",
+          notes, // Include user notes
         },
       });
 

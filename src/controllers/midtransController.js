@@ -69,6 +69,7 @@ class MidtransController {
         totalAmount,
         paymentMethod = "bank_transfer",
         bank,
+        notes, // User notes/comments
       } = req.body;
 
       // Get user and product data
@@ -185,6 +186,7 @@ class MidtransController {
           status: "PENDING",
           paymentMethod,
           paymentType,
+          notes, // Include user notes
         },
       });
 
