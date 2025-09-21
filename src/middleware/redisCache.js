@@ -213,6 +213,9 @@ const productCachePatterns = {
     "cache:GET:/api/products*",
     "cache:GET:/api/products/*",
     "cache:GET:/api/products/checkout/*",
+    "cache:GET:/products*",
+    "cache:GET:/products/*",
+    "cache:GET:/products/checkout/*",
   ],
 
   // Invalidate specific product cache
@@ -221,12 +224,15 @@ const productCachePatterns = {
     `product:checkout:${req.params.id}`,
     `cache:GET:/api/products/${req.params.id}*`,
     `cache:GET:/api/products/checkout/${req.params.id}*`,
+    `cache:GET:/products/${req.params.id}*`,
+    `cache:GET:/products/checkout/${req.params.id}*`,
   ],
 
   // Invalidate product list caches
   invalidateProductList: (req) => [
     "products:list:*",
     "cache:GET:/api/products*",
+    "cache:GET:/products*",
   ],
 };
 
