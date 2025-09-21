@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo           DEPLOYMENT SCRIPT
+echo         DEPLOYMENT SCRIPT
 echo ========================================
 echo.
 
@@ -41,11 +41,10 @@ echo ✓ Docker containers built and started successfully
 echo.
 
 echo ========================================
-echo        DEPLOYMENT COMPLETED!
+echo       DEPLOYMENT COMPLETED!
 echo ========================================
 echo.
-echo All services are now running in detached mode.
-echo You can check the status with: docker-compose ps
+echo You can check status with: docker-compose ps
 echo You can view logs with: docker-compose logs -f
 echo.
 pause
