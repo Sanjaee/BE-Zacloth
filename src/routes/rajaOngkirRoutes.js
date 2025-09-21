@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const rajaOngkirController = require("../controllers/rajaOngkirController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
+const { invalidateCache } = require("../middleware/redisCache");
 
 // Protected routes (authentication required) - All RajaOngkir endpoints now require JWT
 router.get(
@@ -49,16 +50,19 @@ router.get(
 router.post(
   "/addresses",
   authenticateToken,
+  invalidateCache((req) => [`rajaongkir:user:${req.user?.id}:addresses`]),
   rajaOngkirController.createUserAddress.bind(rajaOngkirController)
 );
 router.put(
   "/addresses/:id",
   authenticateToken,
+  invalidateCache((req) => [`rajaongkir:user:${req.user?.id}:addresses`]),
   rajaOngkirController.updateUserAddress.bind(rajaOngkirController)
 );
 router.delete(
   "/addresses/:id",
   authenticateToken,
+  invalidateCache((req) => [`rajaongkir:user:${req.user?.id}:addresses`]),
   rajaOngkirController.deleteUserAddress.bind(rajaOngkirController)
 );
 
