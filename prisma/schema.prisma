@@ -54,7 +54,7 @@ model Product {
   id             String       @id @default(cuid())
   isOnSale       Boolean
   isNikeByYou    Boolean
-  catalogId      String       @unique
+  catalogId      String?       @unique
   brand          String
   category       String
   cloudProductId String

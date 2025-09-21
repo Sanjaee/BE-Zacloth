@@ -41,7 +41,7 @@ const imageValidationSchema = z.object({
 const productDataSchema = z.object({
   isOnSale: z.boolean().optional(),
   isNikeByYou: z.boolean().optional(),
-  catalogId: z.string().trim().min(1, "Catalog ID is required"),
+  catalogId: z.string().trim().optional(), // Made optional
   brand: z.string().trim().min(1, "Brand is required"),
   category: z.string().trim().min(1, "Category is required"),
   cloudProductId: z.string().optional(),

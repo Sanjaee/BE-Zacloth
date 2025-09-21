@@ -229,7 +229,6 @@ const createProduct = async (req, res) => {
 
     // Validate required fields
     if (
-      !catalogId ||
       !brand ||
       !category ||
       !name ||
@@ -242,19 +241,21 @@ const createProduct = async (req, res) => {
     ) {
       return res.status(400).json({
         message:
-          "Field yang wajib diisi: catalogId, brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
+          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
       });
     }
 
-    // Check if catalogId already exists
-    const existingProduct = await prisma.product.findUnique({
-      where: { catalogId },
-    });
-
-    if (existingProduct) {
-      return res.status(400).json({
-        message: "Produk dengan catalogId ini sudah ada",
+    // Check if catalogId already exists (only if catalogId is provided)
+    if (catalogId && catalogId.trim() !== "") {
+      const existingProduct = await prisma.product.findUnique({
+        where: { catalogId },
       });
+
+      if (existingProduct) {
+        return res.status(400).json({
+          message: "Produk dengan catalogId ini sudah ada",
+        });
+      }
     }
 
     // Generate unique slug
@@ -540,7 +541,6 @@ const createProductWithImage = async (req, res) => {
 
     // Validate required fields
     if (
-      !catalogId ||
       !brand ||
       !category ||
       !name ||
@@ -553,19 +553,21 @@ const createProductWithImage = async (req, res) => {
     ) {
       return res.status(400).json({
         message:
-          "Field yang wajib diisi: catalogId, brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
+          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
       });
     }
 
-    // Check if catalogId already exists
-    const existingProduct = await prisma.product.findUnique({
-      where: { catalogId },
-    });
-
-    if (existingProduct) {
-      return res.status(400).json({
-        message: "Produk dengan catalogId ini sudah ada",
+    // Check if catalogId already exists (only if catalogId is provided)
+    if (catalogId && catalogId.trim() !== "") {
+      const existingProduct = await prisma.product.findUnique({
+        where: { catalogId },
       });
+
+      if (existingProduct) {
+        return res.status(400).json({
+          message: "Produk dengan catalogId ini sudah ada",
+        });
+      }
     }
 
     // Generate unique slug
@@ -718,7 +720,6 @@ const updateProduct = async (req, res) => {
 
     // Validate required fields
     if (
-      !catalogId ||
       !brand ||
       !category ||
       !name ||
@@ -731,7 +732,7 @@ const updateProduct = async (req, res) => {
     ) {
       return res.status(400).json({
         message:
-          "Field yang wajib diisi: catalogId, brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
+          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
       });
     }
 
@@ -752,7 +753,11 @@ const updateProduct = async (req, res) => {
     }
 
     // Check if catalogId is being changed and if new catalogId already exists
-    if (catalogId !== existingProduct.catalogId) {
+    if (
+      catalogId !== existingProduct.catalogId &&
+      catalogId &&
+      catalogId.trim() !== ""
+    ) {
       const catalogIdExists = await prisma.product.findUnique({
         where: { catalogId },
       });
@@ -937,7 +942,6 @@ const updateProductWithImage = async (req, res) => {
 
     // Validate required fields
     if (
-      !catalogId ||
       !brand ||
       !category ||
       !name ||
@@ -950,7 +954,7 @@ const updateProductWithImage = async (req, res) => {
     ) {
       return res.status(400).json({
         message:
-          "Field yang wajib diisi: catalogId, brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
+          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
       });
     }
 
@@ -971,7 +975,11 @@ const updateProductWithImage = async (req, res) => {
     }
 
     // Check if catalogId is being changed and if new catalogId already exists
-    if (catalogId !== existingProduct.catalogId) {
+    if (
+      catalogId !== existingProduct.catalogId &&
+      catalogId &&
+      catalogId.trim() !== ""
+    ) {
       const catalogIdExists = await prisma.product.findUnique({
         where: { catalogId },
       });
