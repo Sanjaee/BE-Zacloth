@@ -22,6 +22,9 @@ require("dotenv").config();
 // Import Redis initialization
 const { initializeRedis, closeRedis } = require("./src/config/redisInit");
 
+// Import Payment Queue
+const paymentQueue = require("./src/config/paymentQueue");
+
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -174,12 +177,14 @@ const startServer = async () => {
 // Graceful shutdown
 process.on("SIGINT", async () => {
   console.log("\nReceived SIGINT. Gracefully shutting down...");
+  await paymentQueue.close();
   await closeRedis();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
   console.log("\nReceived SIGTERM. Gracefully shutting down...");
+  await paymentQueue.close();
   await closeRedis();
   process.exit(0);
 });

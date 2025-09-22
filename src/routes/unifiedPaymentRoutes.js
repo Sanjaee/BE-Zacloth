@@ -44,4 +44,7 @@ router.post("/midtrans-callback", UnifiedPaymentController.midtransCallback);
 // Payment status polling endpoint (no authentication required for polling)
 router.get("/payment/:orderId", UnifiedPaymentController.getPaymentStatus);
 
+// Job status tracking endpoint (no authentication required for polling)
+router.get("/job-status/:jobId", UnifiedPaymentController.getJobStatus);
+
 module.exports = router;

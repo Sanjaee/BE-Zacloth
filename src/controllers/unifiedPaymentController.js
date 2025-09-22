@@ -2,6 +2,7 @@ require("dotenv").config();
 const { PrismaClient } = require("@prisma/client");
 const axios = require("axios");
 const crypto = require("crypto");
+const paymentQueue = require("../config/paymentQueue");
 
 const prisma = new PrismaClient();
 
@@ -30,7 +31,7 @@ function mapMidtransStatusToPrisma(status) {
 }
 
 class UnifiedPaymentController {
-  // Create payment - unified for both Midtrans and Plisio
+  // Create payment - unified for both Midtrans and Plisio using message broker
   static async createProductPayment(req, res) {
     try {
       const userId = req.user.id;
@@ -77,7 +78,7 @@ class UnifiedPaymentController {
         });
       }
 
-      // Get user and product data
+      // Quick validation - get user and product data
       const [user, product, address] = await Promise.all([
         prisma.user.findUnique({ where: { id: userId } }),
         prisma.product.findUnique({ where: { id: productId } }),
@@ -100,64 +101,111 @@ class UnifiedPaymentController {
           .json({ success: false, message: "Address not found" });
       }
 
-      const orderId = `Order_${Date.now()}`;
+      // Determine job type based on payment method
+      const jobType =
+        paymentMethod === "crypto"
+          ? "create-plisio-payment"
+          : "create-midtrans-payment";
 
-      // Handle crypto payment with Plisio
-      if (paymentMethod === "crypto") {
-        const PlisioController = require("./plisioController");
-
-        // Create a mock request object for PlisioController
-        const mockReq = {
-          user: { id: userId },
-          body: {
-            productId,
-            addressId,
-            origin,
-            destination,
-            weight,
-            courier,
-            service,
-            productPrice,
-            shippingCost,
-            adminFee,
-            totalAmount,
-            currency: currency || "BTC",
-            notes,
-          },
-        };
-
-        // Call PlisioController.createProductPayment
-        return PlisioController.createProductPayment(mockReq, res);
-      }
-
-      // Handle traditional payment methods with Midtrans
-      const MidtransController = require("./midtransController");
-
-      // Create a mock request object for MidtransController
-      const mockReq = {
-        user: { id: userId },
-        body: {
-          productId,
-          addressId,
-          origin,
-          destination,
-          weight,
-          courier,
-          service,
-          productPrice,
-          shippingCost,
-          adminFee,
-          totalAmount,
-          paymentMethod,
-          bank,
-          notes,
-        },
+      // Prepare job data
+      const jobData = {
+        userId,
+        productId,
+        addressId,
+        origin,
+        destination,
+        weight,
+        courier,
+        service,
+        productPrice,
+        shippingCost,
+        adminFee,
+        totalAmount,
+        paymentMethod,
+        bank,
+        currency: currency || "BTC",
+        notes,
       };
 
-      // Call MidtransController.createProductPayment
-      return MidtransController.createProductPayment(mockReq, res);
+      // Add job to queue with high priority for immediate processing
+      const job = await paymentQueue.addPaymentJob(jobType, jobData, {
+        priority: 1, // High priority
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 2000,
+        },
+      });
+
+      // Return immediate response with job ID for tracking
+      res.json({
+        success: true,
+        message: "Payment request submitted successfully",
+        data: {
+          jobId: job.id,
+          status: "processing",
+          estimatedTime: "30-60 seconds",
+          trackingUrl: `/api/unified-payments/job-status/${job.id}`,
+        },
+      });
     } catch (error) {
       console.error("Create product payment error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Internal server error",
+        message: error.message,
+      });
+    }
+  }
+
+  // Get job status by job ID
+  static async getJobStatus(req, res) {
+    try {
+      const { jobId } = req.params;
+
+      const jobStatus = await paymentQueue.getJobStatus(jobId);
+
+      if (!jobStatus) {
+        return res.status(400).json({
+          success: false,
+          message: "Job not found",
+        });
+      }
+
+      // If job is completed, try to get the payment data
+      let paymentData = null;
+      if (jobStatus.state === "completed" && jobStatus.returnvalue?.success) {
+        const orderId = jobStatus.returnvalue.data?.orderId;
+        if (orderId) {
+          const payment = await prisma.payment.findUnique({
+            where: { orderId },
+            include: {
+              user: true,
+              product: true,
+              shipments: true,
+            },
+          });
+          paymentData = payment;
+        }
+      }
+
+      res.json({
+        success: true,
+        data: {
+          jobId: jobStatus.id,
+          status: jobStatus.state,
+          progress: jobStatus.progress,
+          result: jobStatus.returnvalue,
+          error: jobStatus.failedReason,
+          createdAt: jobStatus.timestamp,
+          processedAt: jobStatus.processedOn,
+          completedAt: jobStatus.finishedOn,
+          attempts: jobStatus.attemptsMade,
+          paymentData,
+        },
+      });
+    } catch (error) {
+      console.error("Get job status error:", error);
       res.status(500).json({
         success: false,
         error: "Internal server error",
