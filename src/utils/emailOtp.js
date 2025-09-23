@@ -10,6 +10,9 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+console.log("EMAIL_USER:", process.env.EMAIL_USER);
+console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "OK" : "MISSING");
+
 const sendVerificationEmail = async (email, username, verificationToken) => {
   const mailOptions = {
     from: `"ZACloth Support" <${process.env.EMAIL_USER}>`,
