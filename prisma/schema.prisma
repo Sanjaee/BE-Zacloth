@@ -8,14 +8,15 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  username  String    @unique   // untuk login
-  googleId  String?   @unique
-  email     String?   @unique   // opsional, kalau diisi harus unik
-  password  String?
-  role      String    @default("client") // admin atau client
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  username      String    @unique   // untuk login
+  googleId      String?   @unique
+  email         String?   @unique   // opsional, kalau diisi harus unik
+  password      String?
+  role          String    @default("client") // admin atau client
+  emailVerified Boolean   @default(false) // untuk verifikasi email
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // Relasi ke Profile (1-1)
   profile   Profile?
@@ -31,6 +32,9 @@ model User {
 
   // Relasi ke Shipped (1-N)
   shipped   Shipped[]
+
+  // Relasi ke EmailVerification (1-N)
+  emailVerifications EmailVerification[]
 }
 
 model Profile {
@@ -256,4 +260,16 @@ enum ShippedStatus {
   DELIVERED  // Diterima pembeli
   CANCELLED  // Dibatalkan
   RETURNED   // Barang dikembalikan
+}
+
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relasi ke User
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

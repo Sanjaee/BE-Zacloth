@@ -6,6 +6,10 @@ const {
   refreshToken,
   updateProfile,
   getProfile,
+  registerUser,
+  verifyOtp,
+  resendOtp,
+  checkEmailStatus,
 } = require("../controllers/userController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
@@ -18,6 +22,18 @@ const {
 } = require("../middleware/security");
 
 const router = express.Router();
+
+// Register user with email OTP
+router.post("/register", validateRequest, registerUser);
+
+// Verify OTP
+router.post("/verify-otp", validateRequest, verifyOtp);
+
+// Resend OTP
+router.post("/resend-otp", validateRequest, resendOtp);
+
+// Check email status
+router.post("/check-email", validateRequest, checkEmailStatus);
 
 // Login user (with enhanced security - blocks all external tools)
 router.post("/login", loginSecurity, validateRequest, loginLimiter, loginUser);
