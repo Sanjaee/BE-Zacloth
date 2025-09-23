@@ -1,5 +1,6 @@
 // config/passport.js
-require("dotenv").config();
+const dotenv = require("dotenv");
+dotenv.config();
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const { PrismaClient } = require("@prisma/client");
