@@ -842,6 +842,77 @@ const checkEmailStatus = async (req, res) => {
   }
 };
 
+// Delete user (admin only)
+const deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const adminId = req.user.id; // From authenticated middleware
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Check if user exists
+    const userToDelete = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (!userToDelete) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Prevent admin from deleting themselves
+    if (userId === adminId) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot delete your own account",
+      });
+    }
+
+    // Prevent deleting other admins (optional security measure)
+    if (userToDelete.role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Cannot delete admin accounts",
+      });
+    }
+
+    // Delete user (cascade will handle related records)
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    res.json({
+      success: true,
+      message: `User ${userToDelete.username} has been deleted successfully`,
+      deletedUser: {
+        id: userToDelete.id,
+        username: userToDelete.username,
+        email: userToDelete.email,
+      },
+    });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete user",
+      error: error.message,
+    });
+  }
+};
+
 // Verify OTP and activate account
 const verifyOtp = async (req, res) => {
   try {
@@ -929,4 +1000,5 @@ module.exports = {
   verifyOtp,
   resendOtp,
   checkEmailStatus,
+  deleteUser,
 };

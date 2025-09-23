@@ -10,6 +10,7 @@ const {
   verifyOtp,
   resendOtp,
   checkEmailStatus,
+  deleteUser,
 } = require("../controllers/userController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
@@ -78,6 +79,16 @@ router.put(
   validateRequest,
   authenticateToken,
   updateProfile
+);
+
+// Delete user (admin only, with enhanced security)
+router.delete(
+  "/:userId",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  deleteUser
 );
 
 module.exports = router;
