@@ -6,12 +6,10 @@ const prisma = new PrismaClient();
 // JWT Secret - should be in environment variables
 const JWT_SECRET =
   process.env.JWT_SECRET ||
-  "wkwkwk";
+  "D8D3DA7A75F61ACD5A4CD579EDBBC";
 const JWT_REFRESH_SECRET =
   process.env.JWT_REFRESH_SECRET ||
-  "wkwkwk";
-
-console.log("JWT_REFRESH_SECRET:", JWT_SECRET);
+  "D8D3DA7A75F61ACD5A4CD579EDBBC";
 
 // Generate JWT tokens
 const generateTokens = (user) => {
