@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const { generateTokens, refreshToken } = require("../middleware/auth");
 const { sendVerificationEmail } = require("../utils/emailOtp");
+const otpQueue = require("../config/otpQueue");
 
 const prisma = new PrismaClient();
 
@@ -677,7 +678,7 @@ const registerUser = async (req, res) => {
       },
     });
 
-    // Store OTP in database (we'll create this table)
+    // Store OTP in database
     await prisma.emailVerification.create({
       data: {
         userId: newUser.id,
@@ -687,15 +688,61 @@ const registerUser = async (req, res) => {
       },
     });
 
-    // Send verification email
-    await sendVerificationEmail(email.trim(), username.trim(), otp);
+    // Add OTP job to queue for background processing
+    try {
+      const job = await otpQueue.addOtpJob(
+        "send-registration-otp",
+        {
+          userId: newUser.id,
+          email: email.trim(),
+          username: username.trim(),
+          otp: otp,
+        },
+        {
+          priority: 1, // High priority for registration OTPs
+          jobId: `reg-otp-${newUser.id}-${Date.now()}`,
+        }
+      );
 
-    res.json({
-      success: true,
-      message:
-        "Registration successful. Please check your email for verification code.",
-      userId: newUser.id,
-    });
+      console.log(`Registration OTP job queued: ${job.id}`);
+
+      res.json({
+        success: true,
+        message:
+          "Registration successful. Please check your email for verification code.",
+        userId: newUser.id,
+        jobId: job.id, // Return job ID for tracking (optional)
+      });
+    } catch (queueError) {
+      console.error("Failed to queue OTP job:", queueError);
+
+      // Fallback: send email directly if queue fails
+      try {
+        await sendVerificationEmail(email.trim(), username.trim(), otp);
+        console.log("Fallback: OTP sent directly");
+
+        res.json({
+          success: true,
+          message:
+            "Registration successful. Please check your email for verification code.",
+          userId: newUser.id,
+        });
+      } catch (emailError) {
+        console.error("Fallback email sending failed:", emailError);
+
+        // Clean up the user if both queue and email fail
+        await prisma.user.delete({ where: { id: newUser.id } });
+        await prisma.emailVerification.deleteMany({
+          where: { userId: newUser.id },
+        });
+
+        res.status(500).json({
+          success: false,
+          message: "Registration failed. Please try again.",
+          error: "Failed to send verification email",
+        });
+      }
+    }
   } catch (error) {
     console.error("Error during registration:", error);
     res.status(500).json({
@@ -755,13 +802,51 @@ const resendOtp = async (req, res) => {
       },
     });
 
-    // Send verification email
-    await sendVerificationEmail(user.email, user.username, otp);
+    // Add resend OTP job to queue for background processing
+    try {
+      const job = await otpQueue.addOtpJob(
+        "resend-otp",
+        {
+          userId: userId,
+          email: user.email,
+          username: user.username,
+          otp: otp,
+        },
+        {
+          priority: 2, // Medium priority for resend OTPs
+          jobId: `resend-otp-${userId}-${Date.now()}`,
+        }
+      );
 
-    res.json({
-      success: true,
-      message: "New verification code sent to your email",
-    });
+      console.log(`Resend OTP job queued: ${job.id}`);
+
+      res.json({
+        success: true,
+        message: "New verification code sent to your email",
+        jobId: job.id, // Return job ID for tracking (optional)
+      });
+    } catch (queueError) {
+      console.error("Failed to queue resend OTP job:", queueError);
+
+      // Fallback: send email directly if queue fails
+      try {
+        await sendVerificationEmail(user.email, user.username, otp);
+        console.log("Fallback: Resend OTP sent directly");
+
+        res.json({
+          success: true,
+          message: "New verification code sent to your email",
+        });
+      } catch (emailError) {
+        console.error("Fallback resend email sending failed:", emailError);
+
+        res.status(500).json({
+          success: false,
+          message: "Failed to resend OTP. Please try again.",
+          error: "Failed to send verification email",
+        });
+      }
+    }
   } catch (error) {
     console.error("Error resending OTP:", error);
     res.status(500).json({
@@ -985,6 +1070,61 @@ const verifyOtp = async (req, res) => {
   }
 };
 
+// Check OTP job status (for monitoring)
+const checkOtpJobStatus = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    if (!jobId) {
+      return res.status(400).json({
+        success: false,
+        message: "Job ID is required",
+      });
+    }
+
+    const jobStatus = await otpQueue.getJobStatus(jobId);
+
+    if (!jobStatus) {
+      return res.status(404).json({
+        success: false,
+        message: "Job not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      jobStatus,
+    });
+  } catch (error) {
+    console.error("Error checking OTP job status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check job status",
+      error: error.message,
+    });
+  }
+};
+
+// Get OTP queue statistics (admin only)
+const getOtpQueueStats = async (req, res) => {
+  try {
+    const stats = await otpQueue.getQueueStats();
+
+    res.json({
+      success: true,
+      stats,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error getting OTP queue stats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get queue statistics",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateUser,
   getAllUsers,
@@ -1001,4 +1141,6 @@ module.exports = {
   resendOtp,
   checkEmailStatus,
   deleteUser,
+  checkOtpJobStatus,
+  getOtpQueueStats,
 };

@@ -25,6 +25,9 @@ const { initializeRedis, closeRedis } = require("./src/config/redisInit");
 // Import Payment Queue
 const paymentQueue = require("./src/config/paymentQueue");
 
+// Import OTP Queue
+const otpQueue = require("./src/config/otpQueue");
+
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -178,6 +181,7 @@ const startServer = async () => {
 process.on("SIGINT", async () => {
   console.log("\nReceived SIGINT. Gracefully shutting down...");
   await paymentQueue.close();
+  await otpQueue.close();
   await closeRedis();
   process.exit(0);
 });
@@ -185,6 +189,7 @@ process.on("SIGINT", async () => {
 process.on("SIGTERM", async () => {
   console.log("\nReceived SIGTERM. Gracefully shutting down...");
   await paymentQueue.close();
+  await otpQueue.close();
   await closeRedis();
   process.exit(0);
 });

@@ -11,6 +11,8 @@ const {
   resendOtp,
   checkEmailStatus,
   deleteUser,
+  checkOtpJobStatus,
+  getOtpQueueStats,
 } = require("../controllers/userController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
@@ -89,6 +91,19 @@ router.delete(
   authenticateToken,
   requireAdmin,
   deleteUser
+);
+
+// Check OTP job status (for monitoring)
+router.get("/otp-job/:jobId", validateRequest, checkOtpJobStatus);
+
+// Get OTP queue statistics (admin only)
+router.get(
+  "/otp-queue/stats",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  requireAdmin,
+  getOtpQueueStats
 );
 
 module.exports = router;
