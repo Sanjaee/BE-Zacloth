@@ -35,6 +35,9 @@ model User {
 
   // Relasi ke EmailVerification (1-N)
   emailVerifications EmailVerification[]
+
+  // Relasi ke PasswordReset (1-N)
+  passwordResets PasswordReset[]
 }
 
 model Profile {
@@ -263,6 +266,18 @@ enum ShippedStatus {
 }
 
 model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  email     String
+  otp       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relasi ke User
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordReset {
   id        String   @id @default(cuid())
   userId    String
   email     String

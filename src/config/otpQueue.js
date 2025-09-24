@@ -100,6 +100,10 @@ class OtpQueue {
           return await this.processRegistrationOtp(job, data);
         case "resend-otp":
           return await this.processResendOtp(job, data);
+        case "send-password-reset-otp":
+          return await this.processPasswordResetOtp(job, data);
+        case "resend-password-reset-otp":
+          return await this.processResendPasswordResetOtp(job, data);
         default:
           throw new Error(`Unknown OTP job type: ${type}`);
       }
@@ -173,6 +177,83 @@ class OtpQueue {
     return {
       success: true,
       message: "Resend OTP sent successfully",
+      data: {
+        userId,
+        email,
+        username,
+        otpSent: true,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  // Process password reset OTP
+  async processPasswordResetOtp(job, data) {
+    const { userId, email, username, otp } = data;
+
+    await job.updateProgress(10);
+
+    // Validate required data
+    if (!userId || !email || !username || !otp) {
+      throw new Error("Missing required data for password reset OTP");
+    }
+
+    await job.updateProgress(30);
+
+    // Send verification email (reuse the same email template)
+    try {
+      await sendVerificationEmail(email, username, otp);
+      console.log(`Password reset OTP sent successfully to ${email}`);
+    } catch (emailError) {
+      console.error("Failed to send password reset OTP email:", emailError);
+      throw new Error(`Failed to send OTP email: ${emailError.message}`);
+    }
+
+    await job.updateProgress(100);
+
+    return {
+      success: true,
+      message: "Password reset OTP sent successfully",
+      data: {
+        userId,
+        email,
+        username,
+        otpSent: true,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  // Process resend password reset OTP
+  async processResendPasswordResetOtp(job, data) {
+    const { userId, email, username, otp } = data;
+
+    await job.updateProgress(10);
+
+    // Validate required data
+    if (!userId || !email || !username || !otp) {
+      throw new Error("Missing required data for resend password reset OTP");
+    }
+
+    await job.updateProgress(30);
+
+    // Send verification email (reuse the same email template)
+    try {
+      await sendVerificationEmail(email, username, otp);
+      console.log(`Resend password reset OTP sent successfully to ${email}`);
+    } catch (emailError) {
+      console.error(
+        "Failed to send resend password reset OTP email:",
+        emailError
+      );
+      throw new Error(`Failed to send OTP email: ${emailError.message}`);
+    }
+
+    await job.updateProgress(100);
+
+    return {
+      success: true,
+      message: "Resend password reset OTP sent successfully",
       data: {
         userId,
         email,

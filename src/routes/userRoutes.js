@@ -13,6 +13,10 @@ const {
   deleteUser,
   checkOtpJobStatus,
   getOtpQueueStats,
+  forgotPassword,
+  verifyPasswordResetOtp,
+  resendPasswordResetOtp,
+  updatePassword,
 } = require("../controllers/userController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
@@ -105,5 +109,17 @@ router.get(
   requireAdmin,
   getOtpQueueStats
 );
+
+// Forgot password - send OTP to email
+router.post("/forgot-password", validateRequest, forgotPassword);
+
+// Verify password reset OTP
+router.post("/verify-password-reset", validateRequest, verifyPasswordResetOtp);
+
+// Resend password reset OTP
+router.post("/resend-password-reset", validateRequest, resendPasswordResetOtp);
+
+// Update password (for password reset flow)
+router.put("/update-password", validateRequest, updatePassword);
 
 module.exports = router;

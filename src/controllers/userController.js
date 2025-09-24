@@ -7,13 +7,14 @@ const otpQueue = require("../config/otpQueue");
 
 const prisma = new PrismaClient();
 
-// Generate random password
+// Generate random password using crypto
 const generateRandomPassword = (length = 12) => {
   const charset =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
   let password = "";
+  const randomBytes = crypto.randomBytes(length);
   for (let i = 0; i < length; i++) {
-    password += charset.charAt(Math.floor(Math.random() * charset.length));
+    password += charset[randomBytes[i] % charset.length];
   }
   return password;
 };
@@ -1125,6 +1126,346 @@ const getOtpQueueStats = async (req, res) => {
   }
 };
 
+// Forgot password - send OTP to email
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Validate input
+    if (!email || email.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim() },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        emailVerified: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Email not found in our system",
+      });
+    }
+
+    if (!user.emailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Email not verified. Please verify your email first.",
+      });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Delete any existing password reset records for this user
+    await prisma.passwordReset.deleteMany({
+      where: { userId: user.id },
+    });
+
+    // Store OTP in database
+    await prisma.passwordReset.create({
+      data: {
+        userId: user.id,
+        email: email.trim(),
+        otp: otp,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      },
+    });
+
+    // Add password reset OTP job to queue for background processing
+    try {
+      const job = await otpQueue.addOtpJob(
+        "send-password-reset-otp",
+        {
+          userId: user.id,
+          email: email.trim(),
+          username: user.username,
+          otp: otp,
+        },
+        {
+          priority: 1, // High priority for password reset OTPs
+          jobId: `reset-otp-${user.id}-${Date.now()}`,
+        }
+      );
+
+      console.log(`Password reset OTP job queued: ${job.id}`);
+
+      res.json({
+        success: true,
+        message: "Password reset code sent to your email",
+        userId: user.id,
+        jobId: job.id, // Return job ID for tracking (optional)
+      });
+    } catch (queueError) {
+      console.error("Failed to queue password reset OTP job:", queueError);
+
+      // Fallback: send email directly if queue fails
+      try {
+        await sendVerificationEmail(email.trim(), user.username, otp);
+        console.log("Fallback: Password reset OTP sent directly");
+
+        res.json({
+          success: true,
+          message: "Password reset code sent to your email",
+          userId: user.id,
+        });
+      } catch (emailError) {
+        console.error(
+          "Fallback password reset email sending failed:",
+          emailError
+        );
+
+        res.status(500).json({
+          success: false,
+          message: "Failed to send password reset code. Please try again.",
+          error: "Failed to send reset email",
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error during forgot password:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to process forgot password request",
+      error: error.message,
+    });
+  }
+};
+
+// Verify password reset OTP
+const verifyPasswordResetOtp = async (req, res) => {
+  try {
+    const { userId, otp } = req.body;
+
+    if (!userId || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID and OTP are required",
+      });
+    }
+
+    // Find the password reset record
+    const resetRecord = await prisma.passwordReset.findFirst({
+      where: {
+        userId: userId,
+        otp: otp,
+        expiresAt: {
+          gt: new Date(), // Not expired
+        },
+      },
+    });
+
+    if (!resetRecord) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired OTP",
+      });
+    }
+
+    // Generate new random password
+    const newPassword = generateRandomPassword(12);
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update user password and delete reset record
+    await prisma.$transaction(async (tx) => {
+      // Update user password
+      await tx.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+      });
+
+      // Delete the reset record
+      await tx.passwordReset.delete({
+        where: { id: resetRecord.id },
+      });
+    });
+
+    res.json({
+      success: true,
+      message: "Password reset successful",
+      newPassword: newPassword, // Return new password for display
+      userId: userId,
+    });
+  } catch (error) {
+    console.error("Error verifying password reset OTP:", error);
+    res.status(500).json({
+      success: false,
+      message: "Password reset verification failed",
+      error: error.message,
+    });
+  }
+};
+
+// Resend password reset OTP
+const resendPasswordResetOtp = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        emailVerified: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user.emailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Email not verified",
+      });
+    }
+
+    // Delete any existing password reset records for this user
+    await prisma.passwordReset.deleteMany({
+      where: { userId: userId },
+    });
+
+    // Generate new 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Store new OTP in database
+    await prisma.passwordReset.create({
+      data: {
+        userId: userId,
+        email: user.email,
+        otp: otp,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      },
+    });
+
+    // Add resend password reset OTP job to queue for background processing
+    try {
+      const job = await otpQueue.addOtpJob(
+        "resend-password-reset-otp",
+        {
+          userId: userId,
+          email: user.email,
+          username: user.username,
+          otp: otp,
+        },
+        {
+          priority: 2, // Medium priority for resend OTPs
+          jobId: `resend-reset-otp-${userId}-${Date.now()}`,
+        }
+      );
+
+      console.log(`Resend password reset OTP job queued: ${job.id}`);
+
+      res.json({
+        success: true,
+        message: "New password reset code sent to your email",
+        jobId: job.id, // Return job ID for tracking (optional)
+      });
+    } catch (queueError) {
+      console.error(
+        "Failed to queue resend password reset OTP job:",
+        queueError
+      );
+
+      // Fallback: send email directly if queue fails
+      try {
+        await sendVerificationEmail(user.email, user.username, otp);
+        console.log("Fallback: Resend password reset OTP sent directly");
+
+        res.json({
+          success: true,
+          message: "New password reset code sent to your email",
+        });
+      } catch (emailError) {
+        console.error(
+          "Fallback resend password reset email sending failed:",
+          emailError
+        );
+
+        res.status(500).json({
+          success: false,
+          message: "Failed to resend password reset code. Please try again.",
+          error: "Failed to send reset email",
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error resending password reset OTP:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to resend password reset code",
+      error: error.message,
+    });
+  }
+};
+
+// Update password (for password reset flow)
+const updatePassword = async (req, res) => {
+  try {
+    const { userId, newPassword } = req.body;
+
+    if (!userId || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID and new password are required",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters long",
+      });
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update user password
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    res.json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating password:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update password",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   generateUser,
   getAllUsers,
@@ -1143,4 +1484,8 @@ module.exports = {
   deleteUser,
   checkOtpJobStatus,
   getOtpQueueStats,
+  forgotPassword,
+  verifyPasswordResetOtp,
+  resendPasswordResetOtp,
+  updatePassword,
 };
