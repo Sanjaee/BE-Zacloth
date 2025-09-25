@@ -38,6 +38,9 @@ model User {
 
   // Relasi ke PasswordReset (1-N)
   passwordResets PasswordReset[]
+
+  // Relasi ke Cart (1-N)
+  cartItems Cart[]
 }
 
 model Profile {
@@ -94,6 +97,9 @@ model Product {
 
   // Relasi ke Shipped (1-N)
   shipped        Shipped[]
+
+  // Relasi ke Cart (1-N)
+  cartItems      Cart[]
 }
 
 model SkuData {
@@ -287,4 +293,23 @@ model PasswordReset {
 
   // Relasi ke User
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  quantity  Int      @default(1)
+  size      String?  // Size yang dipilih user
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi ke User
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relasi ke Product
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Unique constraint untuk mencegah duplikasi item di cart
+  @@unique([userId, productId, size])
 }

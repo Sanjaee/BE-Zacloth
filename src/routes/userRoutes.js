@@ -17,6 +17,12 @@ const {
   verifyPasswordResetOtp,
   resendPasswordResetOtp,
   updatePassword,
+  // Cart functions
+  getCartItems,
+  addToCart,
+  updateCartItem,
+  removeFromCart,
+  clearCart,
 } = require("../controllers/userController");
 const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const {
@@ -121,5 +127,51 @@ router.post("/resend-password-reset", validateRequest, resendPasswordResetOtp);
 
 // Update password (for password reset flow)
 router.put("/update-password", validateRequest, updatePassword);
+
+// Cart routes (authenticated users only)
+// Get user's cart items
+router.get(
+  "/cart",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  getCartItems
+);
+
+// Add item to cart
+router.post(
+  "/cart/add",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  addToCart
+);
+
+// Update cart item quantity
+router.put(
+  "/cart/:cartItemId",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  updateCartItem
+);
+
+// Remove item from cart
+router.delete(
+  "/cart/:cartItemId",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  removeFromCart
+);
+
+// Clear entire cart
+router.delete(
+  "/cart",
+  webAppOnly,
+  validateRequest,
+  authenticateToken,
+  clearCart
+);
 
 module.exports = router;
