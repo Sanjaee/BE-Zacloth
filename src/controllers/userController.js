@@ -145,13 +145,18 @@ const loginUser = async (req, res) => {
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: "Username and password are required",
+        message: "Username/Email and password are required",
       });
     }
 
-    // Find user by username
-    const user = await prisma.user.findUnique({
-      where: { username: username.trim() },
+    // Check if input is email format
+    const isEmail = username.includes("@");
+
+    // Find user by username or email
+    const user = await prisma.user.findFirst({
+      where: isEmail
+        ? { email: username.trim() }
+        : { username: username.trim() },
       include: {
         profile: {
           select: {
