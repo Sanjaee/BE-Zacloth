@@ -324,21 +324,6 @@ class UnifiedPaymentController {
         } catch (shippedError) {
           console.error("Error creating shipped record:", shippedError);
         }
-
-        // Kirim email ke admin
-        try {
-          const { sendAdminPaymentSuccessEmail } = require("../utils/email");
-          await sendAdminPaymentSuccessEmail({
-            to: "afrizaahmad18@gmail.com",
-            type: "product",
-            username: payment.user?.username || "User",
-            email: payment.user?.email || "No email",
-            amount: payment.amount,
-            orderId: payment.orderId,
-          });
-        } catch (err) {
-          console.error("Gagal mengirim email ke admin:", err);
-        }
       }
       const updatedPayment = await prisma.payment.update({
         where: { orderId: orderId },
@@ -689,20 +674,6 @@ class UnifiedPaymentController {
           console.error("Error creating shipped record:", shippedError);
         }
 
-        // Kirim email ke admin
-        try {
-          const { sendAdminPaymentSuccessEmail } = require("../utils/email");
-          await sendAdminPaymentSuccessEmail({
-            to: "afrizaahmad18@gmail.com",
-            type: "product",
-            username: payment.user?.username || "User",
-            email: payment.user?.email || "No email",
-            amount: payment.amount,
-            orderId: payment.orderId,
-          });
-        } catch (err) {
-          console.error("Gagal mengirim email ke admin:", err);
-        }
       }
 
       const updatedPayment = await prisma.payment.update({
