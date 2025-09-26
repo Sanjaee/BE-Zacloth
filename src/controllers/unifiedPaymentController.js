@@ -51,6 +51,8 @@ class UnifiedPaymentController {
         bank,
         currency, // For crypto payments
         notes, // User notes/comments
+        isMultiItem, // Flag for multi-item checkout
+        multiItemData, // Multi-item data
       } = req.body;
 
       // Validation
@@ -79,9 +81,8 @@ class UnifiedPaymentController {
       }
 
       // Quick validation - get user and product data
-      const [user, product, address] = await Promise.all([
+      const [user, address] = await Promise.all([
         prisma.user.findUnique({ where: { id: userId } }),
-        prisma.product.findUnique({ where: { id: productId } }),
         prisma.userAddress.findUnique({ where: { id: addressId } }),
       ]);
 
@@ -90,15 +91,38 @@ class UnifiedPaymentController {
           .status(401)
           .json({ success: false, message: "User not found" });
       }
-      if (!product) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Product not found" });
-      }
       if (!address) {
         return res
           .status(400)
           .json({ success: false, message: "Address not found" });
+      }
+
+      // Handle multi-item validation
+      if (isMultiItem && multiItemData) {
+        // Validate all products in multi-item data
+        const productIds = multiItemData.items.map((item) => item.productId);
+        const products = await prisma.product.findMany({
+          where: { id: { in: productIds } },
+        });
+
+        if (products.length !== productIds.length) {
+          return res
+            .status(400)
+            .json({
+              success: false,
+              message: "One or more products not found",
+            });
+        }
+      } else {
+        // Single item validation
+        const product = await prisma.product.findUnique({
+          where: { id: productId },
+        });
+        if (!product) {
+          return res
+            .status(400)
+            .json({ success: false, message: "Product not found" });
+        }
       }
 
       // Determine job type based on payment method
@@ -125,6 +149,12 @@ class UnifiedPaymentController {
         bank,
         currency: currency || "BTC",
         notes,
+        // Add multi-item data if applicable
+        ...(isMultiItem &&
+          multiItemData && {
+            isMultiItem: true,
+            multiItemData: multiItemData,
+          }),
       };
 
       // Add job to queue with high priority for immediate processing
@@ -673,7 +703,6 @@ class UnifiedPaymentController {
         } catch (shippedError) {
           console.error("Error creating shipped record:", shippedError);
         }
-
       }
 
       const updatedPayment = await prisma.payment.update({
