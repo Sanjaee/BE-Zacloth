@@ -106,12 +106,10 @@ class UnifiedPaymentController {
         });
 
         if (products.length !== productIds.length) {
-          return res
-            .status(400)
-            .json({
-              success: false,
-              message: "One or more products not found",
-            });
+          return res.status(400).json({
+            success: false,
+            message: "One or more products not found",
+          });
         }
       } else {
         // Single item validation
