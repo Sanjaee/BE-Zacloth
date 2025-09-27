@@ -4,45 +4,10 @@ const redisConfig = require("../config/redisConfig");
 
 const prisma = new PrismaClient();
 
-// Helper function to trigger frontend revalidation
-const triggerFrontendRevalidation = async (productId, slug) => {
-  try {
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const revalidateSecret = process.env.REVALIDATE_SECRET || "your-secret-key";
-
-    const response = await fetch(
-      `${frontendUrl}/api/revalidate-product?secret=${revalidateSecret}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          productId,
-          slug,
-        }),
-      }
-    );
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log(
-        `✅ Frontend revalidation triggered for product ${productId}:`,
-        result
-      );
-    } else {
-      console.error(
-        `❌ Failed to trigger frontend revalidation for product ${productId}:`,
-        response.status,
-        response.statusText
-      );
-    }
-  } catch (error) {
-    console.error(
-      `❌ Error triggering frontend revalidation for product ${productId}:`,
-      error.message
-    );
-  }
+// Helper function to log cache invalidation (no longer needed for SSR)
+const logCacheInvalidation = (productId, action) => {
+  console.log(`🔄 Cache invalidated for product ${productId} (${action})`);
+  console.log(`📝 Frontend will fetch fresh data on next request via SSR`);
 };
 
 // Helper function to invalidate product-related caches
@@ -384,8 +349,8 @@ const createProduct = async (req, res) => {
     // Invalidate product caches after successful creation
     await invalidateProductCaches();
 
-    // Trigger frontend revalidation
-    await triggerFrontendRevalidation(product.id, product.slug);
+    // Log cache invalidation
+    logCacheInvalidation(product.id, "created");
 
     res.status(201).json({
       message: "Produk berhasil ditambahkan",
@@ -948,8 +913,8 @@ const updateProduct = async (req, res) => {
     // Invalidate product caches after successful update
     await invalidateProductCaches(id);
 
-    // Trigger frontend revalidation
-    await triggerFrontendRevalidation(updatedProduct.id, updatedProduct.slug);
+    // Log cache invalidation
+    logCacheInvalidation(updatedProduct.id, "updated");
 
     res.json({
       message: "Produk berhasil diupdate",
@@ -1246,8 +1211,8 @@ const updateProductWithImage = async (req, res) => {
     // Invalidate product caches after successful update
     await invalidateProductCaches(id);
 
-    // Trigger frontend revalidation
-    await triggerFrontendRevalidation(updatedProduct.id, updatedProduct.slug);
+    // Log cache invalidation
+    logCacheInvalidation(updatedProduct.id, "updated");
 
     res.json({
       message: "Produk berhasil diupdate",
@@ -1315,8 +1280,8 @@ const deleteProduct = async (req, res) => {
     // Invalidate product caches after successful deletion
     await invalidateProductCaches(id);
 
-    // Trigger frontend revalidation for deleted product
-    await triggerFrontendRevalidation(id, existingProduct.slug);
+    // Log cache invalidation
+    logCacheInvalidation(id, "deleted");
 
     res.json({
       message: "Produk berhasil dihapus",
