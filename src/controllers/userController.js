@@ -1542,6 +1542,14 @@ const addToCart = async (req, res) => {
       });
     }
 
+    // Check stock availability
+    if (product.stock <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Product is out of stock",
+      });
+    }
+
     // Check if size is valid (if provided)
     if (size && product.skuData.length > 0) {
       const validSize = product.skuData.some((sku) => sku.size === size);
@@ -1563,11 +1571,20 @@ const addToCart = async (req, res) => {
     });
 
     if (existingItem) {
+      // Check if adding this quantity would exceed stock
+      const newQuantity = existingItem.quantity + quantity;
+      if (newQuantity > product.stock) {
+        return res.status(400).json({
+          success: false,
+          message: `Only ${product.stock} items available in stock. You already have ${existingItem.quantity} in your cart.`,
+        });
+      }
+
       // Update quantity if item already exists
       const updatedItem = await prisma.cart.update({
         where: { id: existingItem.id },
         data: {
-          quantity: existingItem.quantity + quantity,
+          quantity: newQuantity,
           updatedAt: new Date(),
         },
         include: {
@@ -1590,6 +1607,14 @@ const addToCart = async (req, res) => {
         cartItem: updatedItem,
       });
     } else {
+      // Check if requested quantity exceeds stock
+      if (quantity > product.stock) {
+        return res.status(400).json({
+          success: false,
+          message: `Only ${product.stock} items available in stock`,
+        });
+      }
+
       // Create new cart item
       const newCartItem = await prisma.cart.create({
         data: {
@@ -1649,12 +1674,23 @@ const updateCartItem = async (req, res) => {
         id: cartItemId,
         userId,
       },
+      include: {
+        product: true,
+      },
     });
 
     if (!cartItem) {
       return res.status(404).json({
         success: false,
         message: "Cart item not found",
+      });
+    }
+
+    // Check stock availability
+    if (quantity > cartItem.product.stock) {
+      return res.status(400).json({
+        success: false,
+        message: `Only ${cartItem.product.stock} items available in stock`,
       });
     }
 

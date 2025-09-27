@@ -4,6 +4,47 @@ const redisConfig = require("../config/redisConfig");
 
 const prisma = new PrismaClient();
 
+// Helper function to trigger frontend revalidation
+const triggerFrontendRevalidation = async (productId, slug) => {
+  try {
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const revalidateSecret = process.env.REVALIDATE_SECRET || "your-secret-key";
+
+    const response = await fetch(
+      `${frontendUrl}/api/revalidate-product?secret=${revalidateSecret}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productId,
+          slug,
+        }),
+      }
+    );
+
+    if (response.ok) {
+      const result = await response.json();
+      console.log(
+        `✅ Frontend revalidation triggered for product ${productId}:`,
+        result
+      );
+    } else {
+      console.error(
+        `❌ Failed to trigger frontend revalidation for product ${productId}:`,
+        response.status,
+        response.statusText
+      );
+    }
+  } catch (error) {
+    console.error(
+      `❌ Error triggering frontend revalidation for product ${productId}:`,
+      error.message
+    );
+  }
+};
+
 // Helper function to invalidate product-related caches
 const invalidateProductCaches = async (productId = null) => {
   if (!redisConfig.isRedisConnected()) {
@@ -15,7 +56,19 @@ const invalidateProductCaches = async (productId = null) => {
       "products:list:*",
       "product:detail:*",
       "cache:GET:/api/products*",
+      "cache:GET:/api/products/*",
       "cache:GET:/products*",
+      "cache:GET:/products/*",
+      // More comprehensive patterns for middleware cache
+      "cache:GET:/api/products*",
+      "cache:GET:/api/products/*",
+      "cache:GET:/api/products/*:*",
+      "cache:GET:/products*",
+      "cache:GET:/products/*",
+      "cache:GET:/products/*:*",
+      // Additional patterns for middleware cache keys with base64 encoding
+      "cache:GET:/api/products/*:*:*",
+      "cache:GET:/products/*:*:*",
     ];
 
     if (productId) {
@@ -23,6 +76,11 @@ const invalidateProductCaches = async (productId = null) => {
       patterns.push(`product:checkout:${productId}`);
       patterns.push(`cache:GET:/api/products/${productId}*`);
       patterns.push(`cache:GET:/products/${productId}*`);
+      // Add more specific patterns for middleware cache keys
+      patterns.push(`cache:GET:/api/products/${productId}:*`);
+      patterns.push(`cache:GET:/products/${productId}:*`);
+      patterns.push(`cache:GET:/api/products/${productId}:*:*`);
+      patterns.push(`cache:GET:/products/${productId}:*:*`);
     }
 
     for (const pattern of patterns) {
@@ -32,7 +90,11 @@ const invalidateProductCaches = async (productId = null) => {
       );
     }
 
-    console.log("Product caches invalidated successfully");
+    console.log(
+      `Product caches invalidated successfully for ${
+        productId ? `product ${productId}` : "all products"
+      }`
+    );
   } catch (error) {
     console.error("Error invalidating product caches:", error);
   }
@@ -210,6 +272,7 @@ const createProduct = async (req, res) => {
       name,
       prodigyId,
       imageUrl,
+      stock,
       genders,
       skuData,
       subCategories,
@@ -223,6 +286,7 @@ const createProduct = async (req, res) => {
       name,
       currentPrice,
       fullPrice,
+      stock,
       userId,
       userRole,
     });
@@ -237,11 +301,14 @@ const createProduct = async (req, res) => {
       currentPrice <= 0 ||
       fullPrice === undefined ||
       fullPrice === null ||
-      fullPrice <= 0
+      fullPrice <= 0 ||
+      stock === undefined ||
+      stock === null ||
+      stock < 0
     ) {
       return res.status(400).json({
         message:
-          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
+          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0), stock (harus >= 0)",
       });
     }
 
@@ -284,6 +351,7 @@ const createProduct = async (req, res) => {
         slug,
         prodigyId: prodigyId || "",
         imageUrl: imageUrl || "",
+        stock: parseInt(stock) || 0,
         userId: userId,
         genders: {
           create:
@@ -315,6 +383,9 @@ const createProduct = async (req, res) => {
 
     // Invalidate product caches after successful creation
     await invalidateProductCaches();
+
+    // Trigger frontend revalidation
+    await triggerFrontendRevalidation(product.id, product.slug);
 
     res.status(201).json({
       message: "Produk berhasil ditambahkan",
@@ -456,6 +527,7 @@ const getProductForCheckout = async (req, res) => {
         prodigyId: true,
         isNikeByYou: true,
         slug: true,
+        stock: true,
         createdAt: true,
         updatedAt: true,
         user: {
@@ -520,6 +592,7 @@ const createProductWithImage = async (req, res) => {
       name,
       prodigyId,
       imageUrl,
+      stock,
       genders,
       skuData,
       subCategories,
@@ -534,6 +607,7 @@ const createProductWithImage = async (req, res) => {
       name,
       currentPrice,
       fullPrice,
+      stock,
       userId,
       userRole,
       hasImages: images ? images.length : 0,
@@ -549,11 +623,14 @@ const createProductWithImage = async (req, res) => {
       currentPrice <= 0 ||
       fullPrice === undefined ||
       fullPrice === null ||
-      fullPrice <= 0
+      fullPrice <= 0 ||
+      stock === undefined ||
+      stock === null ||
+      stock < 0
     ) {
       return res.status(400).json({
         message:
-          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
+          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0), stock (harus >= 0)",
       });
     }
 
@@ -602,6 +679,7 @@ const createProductWithImage = async (req, res) => {
         slug,
         prodigyId: prodigyId || "",
         imageUrl: finalImageUrl,
+        stock: parseInt(stock) || 0,
         userId: userId,
         genders: {
           create:
@@ -698,6 +776,7 @@ const updateProduct = async (req, res) => {
       name,
       prodigyId,
       imageUrl,
+      stock,
       genders,
       skuData,
       subCategories,
@@ -714,6 +793,7 @@ const updateProduct = async (req, res) => {
       name,
       currentPrice,
       fullPrice,
+      stock,
       userId,
       userRole,
     });
@@ -728,11 +808,14 @@ const updateProduct = async (req, res) => {
       currentPrice <= 0 ||
       fullPrice === undefined ||
       fullPrice === null ||
-      fullPrice <= 0
+      fullPrice <= 0 ||
+      stock === undefined ||
+      stock === null ||
+      stock < 0
     ) {
       return res.status(400).json({
         message:
-          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
+          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0), stock (harus >= 0)",
       });
     }
 
@@ -825,6 +908,7 @@ const updateProduct = async (req, res) => {
         slug,
         prodigyId: prodigyId || "",
         imageUrl: imageUrl || existingProduct.imageUrl, // Keep existing image if not provided
+        stock: parseInt(stock) || 0,
         userId: userId,
         // Update related data
         genders: {
@@ -863,6 +947,9 @@ const updateProduct = async (req, res) => {
 
     // Invalidate product caches after successful update
     await invalidateProductCaches(id);
+
+    // Trigger frontend revalidation
+    await triggerFrontendRevalidation(updatedProduct.id, updatedProduct.slug);
 
     res.json({
       message: "Produk berhasil diupdate",
@@ -918,6 +1005,7 @@ const updateProductWithImage = async (req, res) => {
       name,
       prodigyId,
       imageUrl,
+      stock,
       genders,
       skuData,
       subCategories,
@@ -935,6 +1023,7 @@ const updateProductWithImage = async (req, res) => {
       name,
       currentPrice,
       fullPrice,
+      stock,
       userId,
       userRole,
       hasNewImages: images ? images.length : 0,
@@ -950,11 +1039,14 @@ const updateProductWithImage = async (req, res) => {
       currentPrice <= 0 ||
       fullPrice === undefined ||
       fullPrice === null ||
-      fullPrice <= 0
+      fullPrice <= 0 ||
+      stock === undefined ||
+      stock === null ||
+      stock < 0
     ) {
       return res.status(400).json({
         message:
-          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0)",
+          "Field yang wajib diisi: brand, category, name, currentPrice (harus > 0), fullPrice (harus > 0), stock (harus >= 0)",
       });
     }
 
@@ -1108,6 +1200,7 @@ const updateProductWithImage = async (req, res) => {
         slug,
         prodigyId: prodigyId || "",
         imageUrl: finalImageUrl,
+        stock: parseInt(stock) || 0,
         userId: userId,
         // Update related data
         genders: {
@@ -1152,6 +1245,9 @@ const updateProductWithImage = async (req, res) => {
 
     // Invalidate product caches after successful update
     await invalidateProductCaches(id);
+
+    // Trigger frontend revalidation
+    await triggerFrontendRevalidation(updatedProduct.id, updatedProduct.slug);
 
     res.json({
       message: "Produk berhasil diupdate",
@@ -1218,6 +1314,9 @@ const deleteProduct = async (req, res) => {
 
     // Invalidate product caches after successful deletion
     await invalidateProductCaches(id);
+
+    // Trigger frontend revalidation for deleted product
+    await triggerFrontendRevalidation(id, existingProduct.slug);
 
     res.json({
       message: "Produk berhasil dihapus",

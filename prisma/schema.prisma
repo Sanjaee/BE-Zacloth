@@ -79,6 +79,8 @@ model Product {
   slug           String       @unique // URL-friendly slug
   prodigyId      String
   imageUrl       String       // Main image (backward compatibility)
+  stock          Int          @default(0) // Stock quantity
+  reservedStock  Int          @default(0) // Reserved stock for pending payments
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -217,6 +219,8 @@ model Payment {
   paidAt                DateTime?
   midtransResponse      String?       // JSON response from Midtrans
   midtransAction        String?       // JSON.stringify(result.actions)
+  isMultiItem           Boolean       @default(false) // Flag for multi-item checkout
+  multiItemData         String?       // JSON string of multi-item data
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 

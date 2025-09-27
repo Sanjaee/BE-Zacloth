@@ -3,8 +3,117 @@ const { PrismaClient } = require("@prisma/client");
 const axios = require("axios");
 const crypto = require("crypto");
 const paymentQueue = require("../config/paymentQueue");
+const redisConfig = require("../config/redisConfig");
 
 const prisma = new PrismaClient();
+
+// Helper function to invalidate product-related cach
+const invalidateProductCaches = async (productId = null) => {
+  if (!redisConfig.isRedisConnected()) {
+    return;
+  }
+
+  try {
+    const patterns = [
+      "products:list:*",
+      "product:detail:*",
+      "cache:GET:/api/products*",
+      "cache:GET:/api/products/*",
+      "cache:GET:/products*",
+      "cache:GET:/products/*",
+      // More comprehensive patterns for middleware cache
+      "cache:GET:/api/products*",
+      "cache:GET:/api/products/*",
+      "cache:GET:/api/products/*:*",
+      "cache:GET:/products*",
+      "cache:GET:/products/*",
+      "cache:GET:/products/*:*",
+      // Additional patterns for middleware cache keys with base64 encoding
+      "cache:GET:/api/products/*:*:*",
+      "cache:GET:/products/*:*:*",
+    ];
+
+    if (productId) {
+      patterns.push(`product:detail:${productId}`);
+      patterns.push(`product:checkout:${productId}`);
+      patterns.push(`cache:GET:/api/products/${productId}*`);
+      patterns.push(`cache:GET:/products/${productId}*`);
+      // Add more specific patterns for middleware cache keys
+      patterns.push(`cache:GET:/api/products/${productId}:*`);
+      patterns.push(`cache:GET:/products/${productId}:*`);
+      patterns.push(`cache:GET:/api/products/${productId}:*:*`);
+      patterns.push(`cache:GET:/products/${productId}:*:*`);
+    }
+
+    for (const pattern of patterns) {
+      const deletedCount = await redisConfig.invalidatePattern(pattern);
+      console.log(
+        `Invalidated ${deletedCount} cache entries for pattern: ${pattern}`
+      );
+    }
+
+    console.log(
+      `Product caches invalidated successfully for ${
+        productId ? `product ${productId}` : "all products"
+      }`
+    );
+  } catch (error) {
+    console.error("Error invalidating product caches:", error);
+  }
+};
+
+
+
+// Helper function to restore reserved stock
+async function restoreReservedStock(payment) {
+  try {
+    const productIds = [];
+
+    if (payment.isMultiItem && payment.multiItemData) {
+      // Parse multi-item data from JSON string
+      const multiItemData = JSON.parse(payment.multiItemData);
+      // Restore reserved stock for multi-item checkout
+      for (const item of multiItemData.items) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            reservedStock: {
+              decrement: item.quantity,
+            },
+          },
+        });
+        productIds.push(item.productId);
+        console.log(
+          `Restored ${item.quantity} reserved stock for product ${item.productId}`
+        );
+      }
+    } else {
+      // Restore reserved stock for single item checkout
+      if (payment.productId) {
+        await prisma.product.update({
+          where: { id: payment.productId },
+          data: {
+            reservedStock: {
+              decrement: 1,
+            },
+          },
+        });
+        productIds.push(payment.productId);
+        console.log(
+          `Restored 1 reserved stock for product ${payment.productId}`
+        );
+      }
+    }
+
+    // Invalidate cache for affected products
+    if (productIds.length > 0) {
+      await invalidateProductCaches();
+      console.log(`Invalidated cache for products: ${productIds.join(", ")}`);
+    }
+  } catch (error) {
+    console.error("Error restoring reserved stock:", error);
+  }
+}
 
 // Konfigurasi Midtrans
 const MIDTRANS_SERVER_KEY = "SB-Mid-server-4zIt7djwCeRdMpgF4gXDjciC";
@@ -111,6 +220,25 @@ class UnifiedPaymentController {
             message: "One or more products not found",
           });
         }
+
+        // Check available stock for each item (stock - reservedStock)
+        for (const item of multiItemData.items) {
+          const product = products.find((p) => p.id === item.productId);
+          if (!product) {
+            return res.status(400).json({
+              success: false,
+              message: `Product ${item.productId} not found`,
+            });
+          }
+
+          const availableStock = product.stock - (product.reservedStock || 0);
+          if (availableStock < item.quantity) {
+            return res.status(400).json({
+              success: false,
+              message: `Insufficient stock for ${product.name}. Available: ${availableStock}, Requested: ${item.quantity}`,
+            });
+          }
+        }
       } else {
         // Single item validation
         const product = await prisma.product.findUnique({
@@ -120,6 +248,15 @@ class UnifiedPaymentController {
           return res
             .status(400)
             .json({ success: false, message: "Product not found" });
+        }
+
+        // Check available stock for single item (stock - reservedStock)
+        const availableStock = product.stock - (product.reservedStock || 0);
+        if (availableStock < 1) {
+          return res.status(400).json({
+            success: false,
+            message: `Insufficient stock for ${product.name}. Available: ${availableStock}, Product is out of stock.`,
+          });
         }
       }
 
@@ -317,6 +454,63 @@ class UnifiedPaymentController {
           `Payment success for order ${payment.orderId}, user ${payment.userId}, amount: ${payment.amount}`
         );
 
+        // Reduce stock for products
+        try {
+          const productIds = [];
+
+          if (payment.isMultiItem && payment.multiItemData) {
+            // Parse multi-item data from JSON string
+            const multiItemData = JSON.parse(payment.multiItemData);
+            // Handle multi-item stock reduction
+            for (const item of multiItemData.items) {
+              await prisma.product.update({
+                where: { id: item.productId },
+                data: {
+                  stock: {
+                    decrement: item.quantity,
+                  },
+                  reservedStock: {
+                    decrement: item.quantity,
+                  },
+                },
+              });
+              productIds.push(item.productId);
+              console.log(
+                `Reduced stock for product ${item.productId} by ${item.quantity}`
+              );
+            }
+          } else {
+            // Handle single item stock reduction
+            if (payment.productId) {
+              await prisma.product.update({
+                where: { id: payment.productId },
+                data: {
+                  stock: {
+                    decrement: 1, // Assuming quantity 1 for single item checkout
+                  },
+                  reservedStock: {
+                    decrement: 1,
+                  },
+                },
+              });
+              productIds.push(payment.productId);
+              console.log(
+                `Reduced stock for product ${payment.productId} by 1`
+              );
+            }
+          }
+
+          // Invalidate cache for affected products
+          if (productIds.length > 0) {
+            await invalidateProductCaches();
+            console.log(
+              `Invalidated cache for products: ${productIds.join(", ")}`
+            );
+          }
+        } catch (stockError) {
+          console.error("Error reducing stock:", stockError);
+        }
+
         // Create shipped record if it doesn't exist
         try {
           const existingShipped = await prisma.shipped.findUnique({
@@ -352,6 +546,20 @@ class UnifiedPaymentController {
         } catch (shippedError) {
           console.error("Error creating shipped record:", shippedError);
         }
+      } else if (
+        mapMidtransStatusToPrisma(result.transaction_status) === "FAILED" ||
+        mapMidtransStatusToPrisma(result.transaction_status) === "CANCELLED" ||
+        mapMidtransStatusToPrisma(result.transaction_status) === "EXPIRED"
+      ) {
+        // If payment failed, cancelled, or expired, restore reserved stock
+        console.log(
+          `Payment ${mapMidtransStatusToPrisma(
+            result.transaction_status
+          ).toLowerCase()} for order ${
+            payment.orderId
+          }, restoring reserved stock`
+        );
+        await restoreReservedStock(payment);
       }
       const updatedPayment = await prisma.payment.update({
         where: { orderId: orderId },
@@ -491,6 +699,9 @@ class UnifiedPaymentController {
           error: "No pending payment found for this order",
         });
       }
+
+      // Restore reserved stock before cancelling payment
+      await restoreReservedStock(payment);
 
       // Handle different payment types
       if (payment.paymentType === "plisio") {
@@ -665,6 +876,63 @@ class UnifiedPaymentController {
         console.log(
           `Payment success for order ${payment.orderId}, user ${payment.userId}, amount: ${payment.amount}`
         );
+
+        // Reduce stock for products
+        try {
+          const productIds = [];
+
+          if (payment.isMultiItem && payment.multiItemData) {
+            // Parse multi-item data from JSON string
+            const multiItemData = JSON.parse(payment.multiItemData);
+            // Handle multi-item stock reduction
+            for (const item of multiItemData.items) {
+              await prisma.product.update({
+                where: { id: item.productId },
+                data: {
+                  stock: {
+                    decrement: item.quantity,
+                  },
+                  reservedStock: {
+                    decrement: item.quantity,
+                  },
+                },
+              });
+              productIds.push(item.productId);
+              console.log(
+                `Reduced stock for product ${item.productId} by ${item.quantity}`
+              );
+            }
+          } else {
+            // Handle single item stock reduction
+            if (payment.productId) {
+              await prisma.product.update({
+                where: { id: payment.productId },
+                data: {
+                  stock: {
+                    decrement: 1, // Assuming quantity 1 for single item checkout
+                  },
+                  reservedStock: {
+                    decrement: 1,
+                  },
+                },
+              });
+              productIds.push(payment.productId);
+              console.log(
+                `Reduced stock for product ${payment.productId} by 1`
+              );
+            }
+          }
+
+          // Invalidate cache for affected products
+          if (productIds.length > 0) {
+            await invalidateProductCaches();
+            console.log(
+              `Invalidated cache for products: ${productIds.join(", ")}`
+            );
+          }
+        } catch (stockError) {
+          console.error("Error reducing stock:", stockError);
+        }
 
         // Create shipped record if it doesn't exist
         try {

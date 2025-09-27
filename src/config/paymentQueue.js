@@ -2,8 +2,64 @@ require("dotenv").config();
 const { Queue, Worker } = require("bullmq");
 const { PrismaClient } = require("@prisma/client");
 const axios = require("axios");
+const redisConfig = require("./redisConfig");
 
 const prisma = new PrismaClient();
+
+// Helper function to invalidate product-related caches
+const invalidateProductCaches = async (productId = null) => {
+  if (!redisConfig.isRedisConnected()) {
+    return;
+  }
+
+  try {
+    const patterns = [
+      "products:list:*",
+      "product:detail:*",
+      "cache:GET:/api/products*",
+      "cache:GET:/api/products/*",
+      "cache:GET:/products*",
+      "cache:GET:/products/*",
+      // More comprehensive patterns for middleware cache
+      "cache:GET:/api/products*",
+      "cache:GET:/api/products/*",
+      "cache:GET:/api/products/*:*",
+      "cache:GET:/products*",
+      "cache:GET:/products/*",
+      "cache:GET:/products/*:*",
+      // Additional patterns for middleware cache keys with base64 encoding
+      "cache:GET:/api/products/*:*:*",
+      "cache:GET:/products/*:*:*",
+    ];
+
+    if (productId) {
+      patterns.push(`product:detail:${productId}`);
+      patterns.push(`product:checkout:${productId}`);
+      patterns.push(`cache:GET:/api/products/${productId}*`);
+      patterns.push(`cache:GET:/products/${productId}*`);
+      // Add more specific patterns for middleware cache keys
+      patterns.push(`cache:GET:/api/products/${productId}:*`);
+      patterns.push(`cache:GET:/products/${productId}:*`);
+      patterns.push(`cache:GET:/api/products/${productId}:*:*`);
+      patterns.push(`cache:GET:/products/${productId}:*:*`);
+    }
+
+    for (const pattern of patterns) {
+      const deletedCount = await redisConfig.invalidatePattern(pattern);
+      console.log(
+        `Invalidated ${deletedCount} cache entries for pattern: ${pattern}`
+      );
+    }
+
+    console.log(
+      `Product caches invalidated successfully for ${
+        productId ? `product ${productId}` : "all products"
+      }`
+    );
+  } catch (error) {
+    console.error("Error invalidating product caches:", error);
+  }
+};
 
 // Redis connection configuration
 const getRedisConnection = () => {
@@ -121,6 +177,8 @@ class PaymentQueue {
       paymentMethod,
       bank,
       notes,
+      isMultiItem,
+      multiItemData,
     } = data;
 
     await job.updateProgress(10);
@@ -208,8 +266,56 @@ class PaymentQueue {
         paymentMethod,
         paymentType,
         notes,
+        isMultiItem: isMultiItem || false,
+        multiItemData: multiItemData ? JSON.stringify(multiItemData) : null,
       },
     });
+
+    // Reserve stock for pending payment
+    try {
+      const productIds = [];
+
+      if (isMultiItem && multiItemData) {
+        // Reserve stock for multi-item checkout
+        for (const item of multiItemData.items) {
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: {
+              reservedStock: {
+                increment: item.quantity,
+              },
+            },
+          });
+          productIds.push(item.productId);
+          console.log(
+            `Reserved ${item.quantity} stock for product ${item.productId}`
+          );
+        }
+      } else {
+        // Reserve stock for single item checkout
+        await prisma.product.update({
+          where: { id: productId },
+          data: {
+            reservedStock: {
+              increment: 1,
+            },
+          },
+        });
+        productIds.push(productId);
+        console.log(`Reserved 1 stock for product ${productId}`);
+      }
+
+      // Invalidate cache for affected products
+      if (productIds.length > 0) {
+        await invalidateProductCaches();
+        console.log(`Invalidated cache for products: ${productIds.join(", ")}`);
+      }
+    } catch (stockReserveError) {
+      console.error("Error reserving stock:", stockReserveError);
+      // If stock reservation fails, delete the payment record
+      await prisma.payment.delete({ where: { id: payment.id } });
+      throw new Error("Failed to reserve stock for payment");
+    }
 
     // Create shipment record
     const shipment = await prisma.shipment.create({
@@ -309,6 +415,8 @@ class PaymentQueue {
       totalAmount,
       currency = "BTC",
       notes,
+      isMultiItem,
+      multiItemData,
     } = data;
 
     await job.updateProgress(10);
@@ -349,8 +457,56 @@ class PaymentQueue {
         paymentMethod: "crypto",
         paymentType: "plisio",
         notes,
+        isMultiItem: isMultiItem || false,
+        multiItemData: multiItemData ? JSON.stringify(multiItemData) : null,
       },
     });
+
+    // Reserve stock for pending payment
+    try {
+      const productIds = [];
+
+      if (isMultiItem && multiItemData) {
+        // Reserve stock for multi-item checkout
+        for (const item of multiItemData.items) {
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: {
+              reservedStock: {
+                increment: item.quantity,
+              },
+            },
+          });
+          productIds.push(item.productId);
+          console.log(
+            `Reserved ${item.quantity} stock for product ${item.productId}`
+          );
+        }
+      } else {
+        // Reserve stock for single item checkout
+        await prisma.product.update({
+          where: { id: productId },
+          data: {
+            reservedStock: {
+              increment: 1,
+            },
+          },
+        });
+        productIds.push(productId);
+        console.log(`Reserved 1 stock for product ${productId}`);
+      }
+
+      // Invalidate cache for affected products
+      if (productIds.length > 0) {
+        await invalidateProductCaches();
+        console.log(`Invalidated cache for products: ${productIds.join(", ")}`);
+      }
+    } catch (stockReserveError) {
+      console.error("Error reserving stock:", stockReserveError);
+      // If stock reservation fails, delete the payment record
+      await prisma.payment.delete({ where: { id: payment.id } });
+      throw new Error("Failed to reserve stock for payment");
+    }
 
     // Create shipment record
     const shipment = await prisma.shipment.create({
